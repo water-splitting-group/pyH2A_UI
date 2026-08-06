@@ -1,0 +1,574 @@
+/* ============================================================ figures
+ *
+ * Three plates, drawn on paper. They used to sit on the app's dark ground on the same
+ * reasoning as the computed panel — the engine made them, you cannot type into them —
+ * but a 365-column calendar and a 21-year cash flow are instruments, and an instrument
+ * on a dark card reads as an illustration of one. The dark is now a band *inside* the
+ * plate where a single number is being asserted, which also keeps the app to its two
+ * dark surfaces: the levelized-cost readout and the source drawer.
+ *
+ * They render into `.fig-stage`, which is min(1540px, 94vw) of cream with no padding.
+ * Bar geometry arrives as inline `left`/`width` percentages from the renderer, so almost
+ * everything here is layout: make the lane a positioned track, and the bars land.
+ */
+
+.fig { font-size: 13px; color: var(--ink); }
+.fig .kicker { color: var(--ash); }
+.fig h3 {
+  font-family: var(--serif);
+  font-size: 23px;
+  font-weight: 400;
+  margin: 2px 0 0;
+}
+.fig .note, .fig .dc-lede, .fig .cf-lede {
+  max-width: 88ch;
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--graphite);
+}
+.fig .u { font-family: var(--mono); font-size: 9.5px; color: var(--ash); margin-left: 3px; }
+
+/* ------------------------------------------------- the cost cascade (`.dc-`)
+ *
+ * One row per stream, five columns: register, name, value, share, and the lane the bar
+ * runs in. The lane is a shared track, so the bars read as one accumulating measurement
+ * rather than eleven unrelated ones — which is the whole argument of the figure.
+ */
+.dc { display: block; }
+.dc-head { margin-bottom: var(--sp-4); }
+
+.dc-row {
+  display: grid;
+  grid-template-columns: 24px minmax(210px, 30%) 112px 66px 1fr;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 5px 0;
+}
+.dc-reg {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--ash);
+  font-variant-numeric: tabular-nums;
+}
+.dc-name { min-width: 0; }
+.dc-name b { font-weight: 600; }
+.dc-name em { font-style: italic; color: var(--graphite); margin-left: 5px; }
+.dc-name small {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--ash);
+}
+.dc-val {
+  font-family: var(--mono);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  /* `−2.89e-5` broke across two lines mid-exponent and read as two numbers. */
+  white-space: nowrap;
+}
+.dc-val b { font-weight: 600; font-size: 14px; }
+.dc-share {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: right;
+  color: var(--graphite);
+  font-variant-numeric: tabular-nums;
+}
+
+.dc-lane { position: relative; height: 17px; align-self: center; }
+.dc-lane i { position: absolute; top: 0; bottom: 0; }
+
+/* The bar is the stream; the carry is everything bought before it, drawn as a hairline
+   so the eye reads where this stream *starts* without the carry competing with it. */
+.dc-bar { background: var(--fam, var(--prussian)); border-radius: 1px; }
+.dc-carry { width: 1px; background: var(--rule-firm); }
+
+.dc-axis { padding-bottom: 2px; border-bottom: 1px solid var(--rule-firm); }
+.dc-axis .dc-lane { height: 13px; }
+.dc-tick { width: 1px; background: var(--rule); }
+.dc-tick span {
+  position: absolute;
+  top: -1px;
+  left: 3px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--ash);
+}
+.dc-tick-total { background: var(--rule-firm); }
+
+/* A family is the subtotal its streams add up to, so it is set in the type of a heading
+   and its bar is a wash: present, and clearly not one of the things being summed. */
+.dc-band + .dc-band { margin-top: var(--sp-3); }
+.dc-fam { border-top: 1px solid var(--rule); }
+.dc-fam .dc-name b { font-size: 14px; }
+.dc-fam .dc-bar { background: color-mix(in srgb, var(--fam, var(--prussian)) 26%, transparent); }
+.dc-stream .dc-bar { height: 11px; top: 3px; bottom: auto; }
+
+/* Family ink, in file order: capital, operating, financing, end of life. */
+.dc-band:nth-of-type(1) { --fam: var(--prussian); }
+.dc-band:nth-of-type(2) { --fam: var(--copper); }
+.dc-band:nth-of-type(3) { --fam: var(--strontium); }
+.dc-band:nth-of-type(4) { --fam: var(--graphite); }
+
+/* A family's row carries a chip in its lane rather than a bar: the family is the sum of
+   the bars beneath it, and drawing it as a fourth bar would invite the eye to add it to
+   them. The chip marks where the family's own total lands on the shared axis. */
+.dc-chip {
+  width: 3px;
+  background: var(--fam, var(--prussian));
+  border-radius: 1px;
+}
+.dc-dim { color: var(--ash); }
+/* An exactly-zero stream still gets a mark, because "the engine wrote this and it is
+   nil" and "the model has no such line" are different facts. */
+.dc-zero { width: 1px; background: var(--ash); }
+.dc-credit { width: 2px; background: var(--fam-tech, var(--copper)); }
+.dc-credit span {
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  color: var(--ash);
+}
+/* The datum the cascade lands on: one hairline at 100%, under everything. */
+.dc-land { padding: 0; }
+.dc-land .dc-lane { height: 1px; }
+.dc-land .dc-lane i { position: static; display: block; height: 1px; background: var(--ink); }
+
+/* The one dark thing on the plate, holding the one number the whole figure is about
+   and the proof that every regrouping of it lands on the same place. */
+.dc-slab {
+  display: grid;
+  grid-template-columns: minmax(240px, 26%) 1fr;
+  gap: var(--sp-5);
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--dark);
+  color: var(--dark-ink);
+}
+.dc-slab .kicker { color: var(--dark-ash); }
+.dc-hero-n { font-family: var(--mono); font-size: 38px; font-weight: 500; line-height: 1.1; }
+.dc-hero-n .u { color: var(--dark-ash); font-size: 13px; }
+.dc-path { display: block; font-family: var(--mono); font-size: 10px; color: var(--dark-ash); }
+
+.dc-audit .leader { font-size: 12px; }
+.dc-audit .lf { color: var(--dark-ash); }
+.dc-audit .ld { border-bottom-color: color-mix(in srgb, var(--dark-ash) 40%, transparent); }
+.dc-resid {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid color-mix(in srgb, var(--dark-ash) 30%, transparent);
+  font-size: 11.5px;
+  color: var(--dark-ash);
+}
+.dc-sigma { font-size: 14px; color: var(--dark-ink); }
+.dc-resid-t b { font-family: var(--mono); color: var(--dark-ink); }
+.dc-stamp {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fam-scale);
+}
+.dc-resid.ok .dc-stamp { color: #9CC77F; }
+
+.dc-fams { margin-top: var(--sp-4); }
+.dc-fam-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3); }
+.dc-fam-card { border-top: 2px solid var(--fam, var(--dark-ash)); padding-top: 6px; }
+.dc-fam-card .kicker { color: var(--dark-ash); white-space: nowrap; }
+/* Four families, and "financing & tax" is the longest label; let the cards
+   size to their content rather than forcing four equal columns that wrap it. */
+.dc-fam-cards { grid-template-columns: repeat(4, max-content); }
+.dc-fam-n { font-family: var(--mono); font-size: 17px; font-weight: 500; white-space: nowrap; }
+.dc-fam-n .u { color: var(--dark-ash); }
+.dc-fam-s { display: block; font-size: 11px; color: var(--dark-ash); }
+.dc-fam-bar { display: block; height: 3px; margin-top: 5px; background: var(--fam, var(--dark-ash)); }
+
+/* The self-audit: the same money regrouped three ways, all landing on the headline.
+   It is set small and quiet because it is a proof, not a finding — but it is on the
+   plate rather than in a tooltip, because a figure that reconciles is worth more than
+   one that asserts. */
+.dc-audit {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--rule);
+}
+.dc-audit-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 34%) 110px 1fr;
+  gap: var(--sp-3);
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--graphite);
+}
+.dc-audit-row b {
+  font-family: var(--mono);
+  font-weight: 600;
+  text-align: right;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------- the cash flow (`.cf-`)
+ *
+ * A summary column that can be read on its own, and a plot that can be read on its own,
+ * side by side — because the question "did it pay for itself" and the question "when"
+ * want different instruments and the same numbers.
+ */
+/* Twelve cash-flow lines in six families. The renderer asks for them by name — a rect
+   is `fill="var(--cf-capital-1, var(--ash))"` — so an undefined palette is not a missing
+   colour, it is every line resolving to the same grey and the whole plot reading as one
+   solid block. Which is exactly what it did.
+
+   One hue per family, tinted by depth within it, so the stack groups by where the money
+   goes before it groups by which line it is. Revenue is the only thing above the datum
+   and gets the one green in the set. */
+.cf {
+  --cf-revenue-0: #6E9B54;
+
+  --cf-capital-0: var(--fam-framework);
+  --cf-capital-1: color-mix(in srgb, var(--fam-framework) 58%, var(--paper));
+  --cf-capital-2: color-mix(in srgb, var(--fam-framework) 32%, var(--paper));
+
+  --cf-operating-0: var(--fam-solar);
+  --cf-operating-1: color-mix(in srgb, var(--fam-solar) 52%, var(--paper));
+
+  --cf-financing-0: var(--potassium);
+  --cf-financing-1: color-mix(in srgb, var(--potassium) 60%, var(--paper));
+  --cf-financing-2: color-mix(in srgb, var(--potassium) 34%, var(--paper));
+
+  --cf-tax-0: var(--copper);
+
+  --cf-eol-0: var(--fam-scale);
+  --cf-eol-1: color-mix(in srgb, var(--fam-scale) 48%, var(--paper));
+}
+
+.cf-head { margin-bottom: var(--sp-3); }
+.cf-hero {
+  float: right;
+  margin: 0 0 var(--sp-3) var(--sp-4);
+  text-align: right;
+}
+.cf-hero b { font-family: var(--mono); font-size: 40px; font-weight: 500; line-height: 1; }
+.cf-hero span { display: block; font-size: 11px; color: var(--graphite); }
+
+.cf-body {
+  display: grid;
+  grid-template-columns: minmax(230px, 20%) 1fr;
+  gap: var(--sp-5);
+  align-items: start;
+  margin-top: var(--sp-3);
+}
+.cf-side { font-size: 12px; }
+/* A leader row is label, filler, value. `.ld` is an empty span carrying the dots, so it
+   has to be the flexible middle — as a fixed track it collapsed and the value wrapped
+   onto its own line under the label. */
+.leader {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px;
+  align-items: baseline;
+  padding: 3px 0;
+}
+.leader .lf { color: var(--graphite); }
+.leader .ld { border-bottom: 1px dotted var(--rule); transform: translateY(-3px); }
+.leader .lv {
+  font-family: var(--mono);
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.cf-side .ly { font-family: var(--mono); font-size: 10px; color: var(--ash); }
+
+.cf-legend-h { margin-top: var(--sp-4); }
+.cf-leg {
+  display: grid;
+  grid-template-columns: 11px minmax(80px, 1fr) 46px auto;
+  gap: 7px;
+  align-items: center;
+  padding: 2px 0;
+  font-size: 11.5px;
+}
+.cf-sw { width: 11px; height: 11px; border-radius: 1px;
+  background: var(--ink, var(--rule-firm)); flex: none; }
+.cf-leg-n { color: var(--graphite); }
+.cf-leg-v {
+  font-family: var(--mono);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* The bar behind a legend row: this line's size against the largest. */
+.cf-leg-g { position: relative; height: 3px; background: var(--rule); }
+.cf-leg-g i { position: absolute; inset: 0 auto 0 0; background: var(--ink, var(--graphite)); }
+.cf-leg-sum { border-top: 1px solid var(--rule-firm); margin-top: 3px; padding-top: 4px; }
+.cf-leg-sum .cf-leg-v { font-weight: 600; }
+.cf-depr { margin-top: 6px; font-size: 10.5px; color: var(--ash); line-height: 1.45; }
+
+.cf-plot { position: relative; min-width: 0; }
+.cf-plot svg { display: block; width: 100%; height: auto; overflow: visible; }
+.cf-plot { --plot-min: 420px; }
+.cf-plot svg { min-height: var(--plot-min); }
+/* SVG's initial fill is black, and it inherits. A group of stroke-only gridlines
+   therefore paints every one of its paths as a filled black shape unless told not to —
+   which is what turned the whole plot into one olive wash over the bars. Every
+   stroke-only group here declares `fill: none` for that reason. */
+.cf-grids, .cf-line, .cf-case, .cf-marks, .cf-bracket, .cf-plumb, .cf-lead {
+  fill: none;
+}
+/* The hover readout that sits above the plot: which year is under the pointer and what
+   it holds. Not a background — it is five text nodes, and giving the group a fill made
+   them the colour of the paper. */
+.cf-rest text { fill: var(--ash); }
+.cf-rest .cf-scan-n { fill: var(--ink); }
+.cf-grid { stroke: var(--rule); stroke-width: 1; fill: none; }
+.cf-datum { stroke: var(--ink); stroke-width: 1; }
+.cf-datum-cap { font-family: var(--mono); font-size: 8.5px; fill: var(--ash); }
+.cf-vlab, .cf-ylab { font-family: var(--mono); font-size: 8.5px; fill: var(--ash); }
+.cf-ylab.on { fill: var(--ink); font-weight: 600; }
+/* The years spent in deficit, drawn as a field rather than left to the reader to infer
+   from a line that happens to be below zero. */
+.cf-deficit { fill: color-mix(in srgb, var(--ink) 6%, transparent); }
+.cf-line { fill: none; stroke: var(--prussian); stroke-width: 1.6; }
+.cf-node { fill: var(--prussian); }
+.cf-case { fill: none; stroke: var(--rule-firm); stroke-width: 1; }
+/* One full-height band per year, so the eye can follow a column from the bars up to
+   the cumulative line. It carries no fill attribute, so it takes whatever CSS gives it —
+   and `opacity: 0.9` with no fill left it at ash, which painted the entire plot a solid
+   khaki with the bars barely legible on top of it. It is a whisper, and it comes up
+   under the pointer. */
+.cf-tint { fill: var(--ink); opacity: 0.035; }
+.cf-hit:hover + .cf-tint, .cf-tint:hover { opacity: 0.09; }
+.cf-hit { fill: transparent; }
+.cf-hit:hover { fill: color-mix(in srgb, var(--act) 8%, transparent); }
+.cf-plumb { stroke: var(--ash); stroke-width: 1; stroke-dasharray: 2 3; }
+/* ...and the things inside those groups that *are* filled have to say so again. */
+.cf-marks .cf-mark, .cf-marks text, .cf-mark { fill: var(--prussian); }
+.cf-marks text { fill: var(--ink); }
+.cf-lead { stroke: var(--ash); stroke-width: 1; }
+.cf-yr { font-family: var(--mono); font-size: 8.5px; fill: var(--ash); }
+.cf-bracket { stroke: var(--rule-firm); stroke-width: 1; fill: none; }
+.cf-brlab {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  fill: var(--ash);
+}
+.cf-scan-k { font-family: var(--mono); font-size: 8.5px; fill: var(--ash); }
+.cf-scan-n { font-family: var(--mono); font-size: 11px; fill: var(--ink); font-weight: 600; }
+.cf-scan-b { fill: var(--paper-2); stroke: var(--rule-firm); }
+
+.cf-foot {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--rule);
+  font-size: 11px;
+  color: var(--ash);
+}
+.cf-key { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+/* The callouts sit inside the foot and were being squeezed into a flex track 239px
+   wide, one word per line. They are prose and get the full width. */
+.cf-notes { margin-top: var(--sp-3); display: grid; gap: 8px; }
+/* A callout is a paragraph with a numbered badge, not a two-column layout. Gridding it
+   turned every loose text node between the `<b>` and the end into its own implicit grid
+   item, so the sentence came out one word per line. */
+.cf-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--graphite);
+  max-width: 96ch;
+  text-indent: -24px;
+  padding-left: 24px;
+}
+.cf-note b { color: var(--ink); }
+.cf-note-n {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--prussian);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  text-align: center;
+  line-height: 16px;
+  text-indent: 0;
+  vertical-align: 1px;
+}
+.cf-note.fault .cf-note-n { background: var(--strontium); }
+
+/* ------------------------------------------------- the calendar (`.cal-`)
+ *
+ * 8,760 cells: one per hour of the operating year, 365 columns across, 24 rows down.
+ * Ink is magnitude. The lens that opens through summer and closes through winter is day
+ * length, and it is the reason this figure exists at all.
+ */
+.fig-hourly .fig-head { display: flex; align-items: baseline; gap: var(--sp-3); }
+.fig-hourly .fig-head .fill { flex: 1; }
+
+.cal-picks { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--sp-3) 0; }
+.cal-pick, .cal-year {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 3px 8px;
+  background: var(--bench);
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  color: var(--graphite);
+  cursor: pointer;
+}
+.cal-pick:hover, .cal-year:hover { border-color: var(--graphite); color: var(--ink); }
+.cal-pick.on, .cal-year.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.cal-pick .yrs { margin-left: 5px; font-size: 9px; color: var(--ash); }
+.cal-pick.on .yrs { color: var(--dark-ash); }
+.cal-years { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin: 6px 0; }
+.cal-years .kicker { margin-right: 4px; }
+
+/* The plate is a vertical stack: a dark band of derived facts, the month scale, the
+ * 365x24 grid, the daily totals under it on the same x-axis, and the prose. `.cal-frame`
+ * is the only horizontal thing — an hour gutter beside a plate — and laying the whole
+ * stack out as a flex row instead turned the facts band into a tall dark column down
+ * the left. */
+.cal { display: block; margin-top: var(--sp-3); --cal-gutter: 46px; }
+
+.cal-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--dark);
+  color: var(--dark-ink);
+}
+.cal-facts .kicker, .cal-fact small { color: var(--dark-ash); }
+.cal-fact { min-width: 0; }
+.cal-fact small { display: block; margin-top: 3px; font-size: 10px; line-height: 1.4; }
+.cal-fact-n { font-family: var(--mono); font-size: 23px; font-weight: 500; white-space: nowrap; }
+.cal-fact-n .u { color: var(--dark-ash); }
+.cal-fact-hero .cal-fact-n { font-size: 40px; }
+.cal-arrow { color: var(--dark-ash); font-size: 17px; align-self: center; }
+
+.cal-months {
+  position: relative;
+  height: 14px;
+  margin: var(--sp-3) 0 2px var(--cal-gutter);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  color: var(--ash);
+}
+.cal-months span { position: absolute; top: 0; }
+
+/* Gutter plus plate. The gutter is a fixed track so the grid, the daily row and the
+   month scale all start at the same x — three separate elements that have to agree, or
+   a reader lines up a July column against the wrong month. */
+.cal-frame { display: flex; align-items: stretch; gap: 0; }
+.cal-hours {
+  position: relative;
+  width: var(--cal-gutter);
+  flex: none;
+  padding-right: 6px;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  color: var(--ash);
+  text-align: right;
+}
+.cal-hours span { position: absolute; right: 6px; transform: translateY(-3px); }
+.cal-hours .kicker { position: absolute; right: 6px; bottom: 0; }
+.cal-plate { flex: 1; min-width: 0; }
+svg.cal-grid { display: block; width: 100%; height: 300px; }
+.cal-ink { fill: var(--ink); }
+.cal-hit { fill: transparent; }
+
+.cal-daily { margin-top: 6px; }
+.cal-daily svg { display: block; width: 100%; height: 62px; }
+.cal-daily .cal-ink { fill: var(--graphite); }
+
+.cal-read {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--sp-5);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--rule);
+}
+.cal-col p { margin: 5px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--graphite); }
+.cal-col b { color: var(--ink); font-weight: 600; }
+.cal-rg-row {
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: 12px;
+}
+.cal-rg-sw { width: 12px; height: 12px; border-radius: 1px; background: var(--rg, var(--rule)); }
+.cal-rg-n { color: var(--ink); }
+.cal-rg-h, .cal-rg-p, .cal-rg-sum {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--graphite);
+}
+.cal-rg-p { color: var(--ash); }
+
+/* The year at true width: how many of its 8,760 hours were dark, throttled, running or
+   saturated. The proportion is the finding, so it is one bar rather than four numbers. */
+.cal-strip { display: flex; height: 20px; margin: var(--sp-3) 0 0 var(--cal-gutter); }
+.cal-rg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  background: var(--rg, var(--rule));
+  color: var(--ink);
+}
+.cal-key { display: flex; align-items: center; gap: var(--sp-3); margin: 6px 0 0 var(--cal-gutter); }
+.cal-key .fill { flex: 1; }
+.cal-ramp {
+  width: 110px;
+  height: 9px;
+  border-radius: 1px;
+  background: linear-gradient(to right,
+    color-mix(in srgb, var(--ink) 8%, transparent), var(--ink));
+}
+.cal-ramp-lab, .cal-check { font-family: var(--mono); font-size: 8.5px; color: var(--ash); }
+/* The band of hours that carry nothing on any day of the year — the night, in local
+ * solar time. It is positioned over the grid by the renderer, so it must annotate rather
+ * than occlude: opaque ink hid the very cells whose emptiness it is asserting, and a
+ * reader could not check the claim. Translucent, with a rule top and bottom. */
+.cal-plate { position: relative; }
+.cal-dark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--graphite);
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .dc-row { grid-template-columns: 20px 1fr 78px 54px; }
+  .dc-lane { grid-column: 2 / -1; }
+  .cf-body { grid-template-columns: 1fr; gap: var(--sp-4); }
+  .cf-hero { float: none; margin: 0 0 var(--sp-2); text-align: left; }
+  .cal-hod { display: none; }
+}

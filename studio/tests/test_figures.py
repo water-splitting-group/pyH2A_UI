@@ -92,14 +92,43 @@ def test_shares_are_fractions_of_the_total():
 
 
 def test_annual_costs_read_the_engines_own_arrays():
-    '''Each line's total is the sum of the array the engine wrote, not a re-derivation.'''
+    '''Each line's total is the sum of the array the engine wrote, not a re-derivation.
+
+    Signed, and the sign is the contract. These are cash flows, not costs: capital and
+    replacement are money leaving, so their totals are negative, and the stacked figure
+    puts each year's segments on whichever side of the datum its sign chose. Flipping a
+    line to a friendlier magnitude would break `net`, which is checked below.
+    '''
 
     costs = figures.annual_costs(opened('pv_e').run.result)
     by_name = {line['name']: line for line in costs['lines']}
 
-    assert by_name['Depreciable capital']['total'] == pytest.approx(4695969, rel=1e-4)
-    assert by_name['Replacement']['total'] == pytest.approx(2244798, rel=1e-4)
-    assert costs['years'] == 21
+    assert by_name['Depreciable capital']['total'] == pytest.approx(-4695969, rel=1e-4)
+    assert by_name['Replacement']['total'] == pytest.approx(-2244798, rel=1e-4)
+    # Twenty-one analysis years, and they are labelled from −1: the build year is not
+    # operation year 0, and a figure that plots one axis against the other without the
+    # offset puts every cost a year early.
+    assert costs['span'] == 21
+    assert costs['years'][0] == -1 and costs['years'][-1] == 19
+    assert costs['construction_years'] == 1
+
+
+@pytest.mark.parametrize('key', PATHWAYS)
+def test_the_year_totals_are_the_twelve_lines_and_nothing_else(key):
+    '''The one property every annotation on the figure rests on.
+
+    A stacked bar whose segments do not sum to the net it is drawn against is a picture
+    of nothing. Depreciation is the array this excludes — 13.98 M USD on PV+E, larger
+    than the whole capital spend — so if it ever gets stacked, this fails.
+    '''
+
+    costs = figures.annual_costs(opened(key).run.result)
+    running = 0.0
+    for index in range(costs['span']):
+        stacked = sum(line['values'][index] for line in costs['lines'])
+        assert stacked == pytest.approx(costs['net'][index], rel=1e-9, abs=1e-6)
+        running += costs['net'][index]
+        assert costs['cumulative'][index] == pytest.approx(running, rel=1e-9, abs=1e-6)
 
 
 def test_capital_lands_in_the_build_year_and_replacement_in_one_later_year():
@@ -108,11 +137,11 @@ def test_capital_lands_in_the_build_year_and_replacement_in_one_later_year():
     costs = figures.annual_costs(opened('pv_e').run.result)
     by_name = {line['name']: line['values'] for line in costs['lines']}
 
-    assert by_name['Depreciable capital'][0] > 0
+    assert by_name['Depreciable capital'][0] < 0
     assert all(value == 0 for value in by_name['Depreciable capital'][1:])
 
     replacement = by_name['Replacement']
-    spikes = [year for year, value in enumerate(replacement) if value > 0]
+    spikes = [year for year, value in enumerate(replacement) if value < 0]
     assert len(spikes) == 1 and spikes[0] > 5
 
 
@@ -120,13 +149,21 @@ def test_the_peak_year_names_what_dominates_it():
     '''An unexplained spike is a question the figure should answer itself.
 
     PV+E bills its entire twenty-year grid draw in the final year, at the tariff the
-    reference file documents as an upstream typo. That is 98% of the largest year, and
-    a reader seeing 19.9 M with no label would have to go digging for it.
+    reference file documents as an upstream typo. A reader seeing a bar eight times the
+    height of every other one needs the caption to name it without being asked.
+
+    The share is of the year's *outflow* — 19.87 M of the 29.32 M spent in analysis year
+    19 — and not of its net. Net would report 98%, which is arithmetic about a number
+    that also contains 7.04 M of loan principal, and the caption would be crediting one
+    tariff with spending the figure can see went somewhere else.
     '''
 
     costs = figures.annual_costs(opened('pv_e').run.result)
     assert costs['driver']['name'] == 'Variable operating'
-    assert costs['driver']['share'] > 0.9
+    assert costs['driver']['year'] == 19
+    assert costs['driver']['value'] == pytest.approx(19868515, rel=1e-4)
+    assert costs['driver']['spent'] == pytest.approx(29320945, rel=1e-4)
+    assert costs['driver']['share'] == pytest.approx(0.6776, abs=5e-4)
 
 
 def test_a_zero_line_is_marked_rather_than_dropped():
@@ -151,6 +188,19 @@ def test_the_peak_driver_ignores_lines_the_engine_zeroed():
 
     costs = figures.annual_costs(opened('pv_e_lcoe').run.result)
     assert costs['driver']['name'] not in ('Variable operating', 'Replacement')
+
+
+def test_the_peak_driver_is_an_outflow_not_a_credit():
+    '''`pec` books a 127.9 M tax credit in year 19, the largest single entry in the run.
+
+    It is money coming *in*. A driver picked by absolute magnitude would nominate it and
+    caption a cost figure with a refund; the 62.7 M of cell replacement in the same year
+    is what the year actually spent.
+    '''
+
+    driver = figures.annual_costs(opened('pec').run.result)['driver']
+    assert driver['name'] == 'Replacement'
+    assert driver['value'] > 0
 
 
 # ---------------------------------------------------------------- series
