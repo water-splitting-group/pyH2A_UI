@@ -1,0 +1,1535 @@
+/* Paper Plant Studio — the worksheet.
+   Tokens come from tokens.css; this file is layout and the components built on it.
+
+   The organising rule, inherited and kept: dark ground means the engine computed
+   it, paper means you wrote it. Nothing is ambiguous about which is which, because
+   that is how a reader learns what they are allowed to touch. */
+
+html, body { height: 100%; overflow: hidden; }
+body { font-size: 14px; }
+
+/* A unit is a tag attached to its number, never a word beside it. One rule, so a
+   value can never render as `4.1943USD/kg` anywhere in the app. */
+.u { margin-left: 0.34em; font-size: 0.8em; color: var(--ash); letter-spacing: 0.01em; }
+
+/* ============================================================ masthead */
+
+#masthead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: 10px var(--sp-5);
+  background: var(--dark);
+  color: var(--dark-ink);
+  border-bottom: 1px solid #000;
+  height: 46px;
+}
+#masthead .brand {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dark-ash);
+  white-space: nowrap;
+}
+#masthead .brand .surface { color: var(--sodium); }
+#masthead h1 {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 400;
+  color: var(--dark-ink);
+  white-space: nowrap;
+}
+#masthead .grow { flex: 1; }
+
+.chooser {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dark-ash);
+  background: transparent;
+  border: 1px solid var(--dark-rule);
+  border-radius: 2px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.chooser:hover { color: var(--dark-ink); border-color: var(--dark-ash); }
+
+.readouts { display: flex; gap: var(--sp-5); margin: 0; }
+.readouts div { display: flex; align-items: baseline; gap: var(--sp-2); }
+.readouts dt {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dark-ash);
+}
+.readouts dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dark-ink);
+}
+.readouts dd.cost { font-size: 16px; letter-spacing: -0.01em; }
+.readouts dd.cost.broken { font-size: 12.5px; }
+.readouts dd .u { font-size: 10px; color: var(--dark-ash); margin-left: 3px; }
+.readouts dd.moved { color: var(--sodium); }
+.readouts dd.broken { color: var(--strontium); }
+
+.flag {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--sodium);
+  color: #201A06;
+  border: 0;
+  border-radius: 2px;
+  padding: 3px 9px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.flag.severe { background: var(--strontium); color: #fff; }
+
+/* ============================================================ three columns */
+
+#firstedits {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 6px var(--sp-5);
+  background: #FBF4DF;
+  border-bottom: 1px solid var(--sodium);
+  font-size: 12.5px;
+  color: #6B520C;
+}
+#firstedits .kicker { color: #8A6A10; white-space: nowrap; }
+#firstedits .fill { flex: 1; }
+#firstedits button {
+  background: none;
+  border: 0;
+  color: #8A6A10;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+#firstedits a {
+  color: #6B520C;
+  border-bottom: 1px solid rgba(107, 82, 12, 0.35);
+  cursor: pointer;
+  margin-right: var(--sp-3);
+  white-space: nowrap;
+}
+#firstedits a:hover { border-bottom-color: currentColor; }
+#firstedits a.done { opacity: 0.45; text-decoration: line-through; border-bottom: 0; }
+
+#sheet {
+  display: grid;
+  grid-template-columns: 312px minmax(500px, 1fr) minmax(400px, 44%);
+  height: calc(100vh - 46px);
+  overflow: hidden;
+}
+#sheet > * { overflow-y: auto; overflow-x: hidden; }
+body:has(#firstedits:not([hidden])) #sheet { height: calc(100vh - 46px - 29px); }
+
+/* ============================================================ rail */
+
+#rail {
+  background: var(--paper-2);
+  border-right: 1px solid var(--rule-firm);
+  display: flex;
+  flex-direction: column;
+}
+.rail-head { padding: var(--sp-4) var(--sp-4) var(--sp-2); }
+.rail-head .kicker { display: block; }
+.rail-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ash);
+}
+.rail-body { display: flex; align-items: flex-start; flex: 1; position: relative; }
+#rail-edges { flex: none; position: relative; }
+#rail-edges svg { display: block; }
+#rail-edges .edge { transition: opacity 120ms var(--ease), stroke-width 120ms var(--ease); }
+#rail-edges .edge.dim { opacity: 0.13; }
+#rail-edges .edge.lit { opacity: 1; }
+#rail-list { list-style: none; margin: 0; padding: 0 0 var(--sp-4); flex: 1; min-width: 0; }
+
+/* An insertion point is a real place in the workflow, not a hover affordance bolted
+   on: pyH2A sorts on a float Position, so there is always room between two steps. */
+.step + .insert, .insert {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 12px;
+  padding-left: 16px;
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+#rail:hover .insert { opacity: 0.5; }
+.insert:hover { opacity: 1 !important; }
+.insert button {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1;
+  width: 15px; height: 15px;
+  border: 1px solid var(--rule-firm);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--graphite);
+  cursor: pointer;
+  padding: 0;
+}
+.insert button:hover { background: var(--act); color: #fff; border-color: var(--act); }
+.insert .at {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--ash);
+  opacity: 0;
+}
+.insert:hover .at { opacity: 1; }
+
+.step {
+  display: grid;
+  grid-template-columns: 32px 10px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 5px var(--sp-4) 5px 6px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  position: relative;
+}
+.step:hover { background: #EFEDE5; }
+.step[aria-current="true"] {
+  background: var(--paper);
+  border-left-color: var(--ink);
+}
+.step .pos {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ash);
+  text-align: right;
+}
+.step[aria-current="true"] .pos { color: var(--ink); }
+.step .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--fam, var(--ash-line));
+  background: transparent;
+}
+.step.ran .dot { background: var(--fam, var(--ash-line)); }
+.step.error .dot { background: var(--strontium); border-color: var(--strontium); }
+.step.skipped .dot { opacity: 0.3; }
+.step .name {
+  font-size: 12.5px;
+  color: var(--graphite);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.step[aria-current="true"] .name { color: var(--ink); font-weight: 500; }
+.step.skipped .name { color: var(--ash); }
+.step .badge {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0 5px;
+  background: var(--sodium);
+  color: #201A06;
+}
+.step .badge.severe { background: var(--strontium); color: #fff; }
+
+/* A sub-step — 201 under 200 — is bracketed to its decade. */
+.step.sub .pos { color: var(--ash); font-size: 10px; }
+.step.sub::before {
+  content: '';
+  position: absolute;
+  left: 24px; top: 0; bottom: 0;
+  border-left: 1px solid var(--rule-firm);
+}
+
+.rail-flow {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--graphite);
+  line-height: 1.7;
+  min-height: 34px;
+}
+.rail-flow b { color: var(--ink); }
+
+.rail-foot {
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--rule-firm);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ash);
+  line-height: 1.7;
+}
+.rail-foot b { color: var(--graphite); font-weight: 500; }
+
+/* ============================================================ needs */
+
+#needs { padding: var(--sp-5) var(--sp-6) var(--sp-8); background: var(--paper); }
+
+.step-head { display: flex; align-items: flex-start; gap: var(--sp-4); }
+.step-head .numeral {
+  font-family: var(--mono);
+  font-size: 58px;
+  line-height: 0.85;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+}
+.step-head .titles { flex: 1; min-width: 0; padding-top: 2px; }
+.step-head h2 { font-family: var(--serif); font-size: 27px; }
+.step-head .plugin {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ash);
+  letter-spacing: 0.04em;
+}
+.step-head .counts {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ash);
+  line-height: 1.7;
+  white-space: nowrap;
+}
+.step-head .counts .wait { color: #8A6A10; font-weight: 600; }
+.step-head .counts .bad { color: var(--strontium); font-weight: 600; }
+.fam-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--graphite);
+}
+.fam-chip::before {
+  content: '';
+  width: 8px; height: 8px;
+  background: var(--fam, var(--ash-line));
+  border-radius: 1px;
+}
+
+.summary { color: var(--graphite); margin: var(--sp-3) 0 0; max-width: 62ch; }
+
+/* --- the error band: the engine's own verdict, verbatim --- */
+.failure {
+  margin: var(--sp-4) 0 0;
+  border-left: 3px solid var(--strontium);
+  background: #FBEFEE;
+  padding: var(--sp-3) var(--sp-4);
+}
+.failure .what {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--strontium);
+}
+.failure .msg { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+.failure .hint { color: var(--graphite); font-size: 12.5px; margin-top: 5px; }
+
+.unmet {
+  margin: var(--sp-4) 0 0;
+  border-left: 3px solid var(--sodium);
+  background: #FBF4DF;
+  padding: var(--sp-3) var(--sp-4);
+}
+.unmet .what + .what, .unmet .gap + .what { margin-top: var(--sp-3); }
+.unmet .what {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8A6A10;
+  margin-bottom: 5px;
+}
+.unmet .gap { padding: 3px 0; border-top: 1px solid rgba(138,106,16,0.16); }
+.unmet .gap:first-of-type { border-top: 0; }
+.unmet .cell { font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
+.unmet .by { font-size: 12px; color: var(--graphite); margin-left: var(--sp-3); }
+.unmet .by.own { color: var(--ash); font-style: italic; }
+.unmet .d { font-size: 11.5px; color: var(--ash); margin-top: 1px; }
+.unmet .fix {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  background: var(--bench);
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  padding: 1px 6px;
+  cursor: pointer;
+  color: var(--act);
+}
+.unmet .fix:hover { background: var(--act); color: #fff; border-color: var(--act); }
+
+.section-rule {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin: var(--sp-6) 0 var(--sp-2);
+}
+.section-rule .kicker { white-space: nowrap; }
+.section-rule .fill { flex: 1; border-bottom: 1px solid var(--rule-firm); }
+.section-rule .count { font-family: var(--mono); font-size: 10px; color: var(--ash); }
+
+/* --- a table of fields --- */
+.tbl { margin-top: var(--sp-4); }
+.tbl-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: 5px 0;
+  border-bottom: 1.5px solid var(--ink);
+  cursor: pointer;
+}
+.tbl-head .caret { font-size: 9px; color: var(--ash); width: 10px; }
+.tbl-head h3 {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.tbl-head .fill { flex: 1; }
+.tbl-head .note { font-family: var(--mono); font-size: 10px; color: var(--ash); }
+.tbl.waiting .tbl-head { border-bottom-color: var(--sodium); background: #FBF4DF; }
+.tbl.waiting .tbl-head .note { color: #8A6A10; font-weight: 600; }
+
+.field {
+  display: grid;
+  /* A unit is never truncated. `USD/acre` rendering as `USD/ac:` is a different unit,
+     and the whole point of showing it is that a reader can check it. */
+  grid-template-columns: 22px 1fr 140px minmax(76px, max-content);
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: 7px 0 6px;
+  border-bottom: 1px solid var(--rule);
+}
+.field .idx {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--ash);
+  font-variant-numeric: tabular-nums;
+}
+.field .label { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.field .label .n { font-size: 14px; color: var(--ink); }
+.field .label .fill {
+  flex: 1;
+  border-bottom: 1px dotted var(--rule-firm);
+  transform: translateY(-3px);
+  min-width: 10px;
+}
+.field .desc {
+  grid-column: 2 / 5;
+  font-size: 12px;
+  color: var(--ash);
+  line-height: 1.45;
+  margin-top: 1px;
+  max-width: 74ch;
+}
+.field .meta {
+  grid-column: 2 / 5;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--ash);
+  letter-spacing: 0.03em;
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.field .meta b { font-weight: 500; color: var(--graphite); }
+
+input.cell, input.unit {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding: 4px 8px;
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  background: var(--bench);
+  color: var(--ink);
+  width: 100%;
+}
+input.unit { text-align: left; font-size: 11.5px; color: var(--graphite); }
+/* `outline: none` here out-specified the shared `:focus-visible` rule below (0-2-1
+   beats 0-1-0), so the one ring the app designed never painted on the 785 controls that
+   need it most. The border change stays; it is a real second signal. */
+input.cell:focus, input.unit:focus {
+  border-color: var(--prussian);
+  box-shadow: 0 0 0 2px rgba(36, 54, 91, 0.12);
+}
+
+/* One focus ring, designed, everywhere. The browser default is a Chrome blue on a warm
+   cream serif page: functional and undesigned. */
+:focus-visible {
+  outline: 2px solid var(--prussian);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.dark :focus-visible, .made :focus-visible, .fig :focus-visible,
+#masthead :focus-visible { outline-color: var(--sodium); }
+input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
+
+.field.waiting input.cell { border-color: var(--sodium); background: #FDF8EA; }
+.field.bad input.cell, .field.bad input.unit { border-color: var(--strontium); background: #FCF1F0; }
+.field.computed { opacity: 0.92; }
+.field.computed .value-cell {
+  grid-column: 2 / 5;
+  justify-self: end;
+  max-width: 100%;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: right;
+  color: var(--dark-ink);
+  background: var(--dark-2);
+  border-radius: 2px;
+  padding: 3px 8px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.problem {
+  grid-column: 2 / 5;
+  font-size: 12px;
+  color: var(--strontium);
+  margin-top: 3px;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.problem .kind {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  padding: 0 4px;
+}
+.problem.warn { color: #8A6A10; }
+.problem .fixes { display: flex; gap: 5px; flex-wrap: wrap; }
+.problem .fix i { font-style: normal; opacity: 0.7; }
+.problem .fix {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: var(--bench);
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  padding: 1px 5px;
+  cursor: pointer;
+  color: var(--prussian);
+}
+.problem .fix:hover { border-color: var(--prussian); }
+
+/* --- the equation row: one line, operands beside their operator --- */
+.field.eqn { grid-template-columns: 22px 1fr; }
+.field.eqn > .label { grid-column: 2; }
+.eq {
+  grid-column: 2 / 3;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+.eq input.cell.mult { width: 96px; flex: none; }
+.eq .per {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--graphite);
+  white-space: nowrap;
+}
+.eq .op {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--graphite);
+  line-height: 1;
+}
+.eq .operand { display: flex; align-items: baseline; gap: 6px; flex: 1 1 200px; min-width: 0; }
+.eq .operand input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 7px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--paper-2);
+  color: var(--prussian);
+}
+.eq .operand input:focus {
+  background: var(--bench);
+  border-color: var(--prussian);
+}
+.eq .resolved {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.eq .product {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--dark-2);
+  color: var(--dark-ink);
+  border-radius: 2px;
+  padding: 2px 8px;
+}
+.eq .product .q { color: var(--dark-ink); }
+.eq .product .u { color: var(--dark-ash); }
+
+.value-cell.pending {
+  background: transparent !important;
+  border: 1px dashed var(--rule-firm);
+  color: var(--ash) !important;
+  font-size: 11px;
+}
+
+.add-path {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ash);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+}
+.field:hover .add-path { opacity: 1; }
+.add-path:hover { color: var(--prussian); }
+
+/* --- what the step makes: the one dark surface in this column --- */
+.made {
+  margin-top: var(--sp-5);
+  background: var(--dark);
+  color: var(--dark-ink);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+.made .kicker { color: var(--dark-ash); }
+.made-head { display: flex; align-items: baseline; gap: var(--sp-3); }
+.made-head .fill { flex: 1; }
+.made table { width: 100%; border-collapse: collapse; margin-top: var(--sp-3); }
+.made td {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--dark-rule);
+  font-family: var(--mono);
+  font-size: 12px;
+  vertical-align: baseline;
+}
+.made td.n { color: var(--dark-ink); font-family: var(--sans); font-size: 13px; }
+.made td.n small { color: var(--dark-ash); font-family: var(--mono); font-size: 10px; }
+.made td.v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.made td.v .u { color: var(--dark-ash); font-size: 10px; margin-left: 4px; }
+.made .spark { width: 78px; height: 15px; margin-right: 8px; }
+.made tr.tablerow td {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dark-ash);
+  padding-top: var(--sp-3);
+  border-bottom: 1px solid var(--dark-rule);
+}
+.made tr.processed td.n, .made tr.processed td.v { color: var(--dark-ash); }
+.made .rekind {
+  color: var(--dark-ash);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.made .undeclared {
+  color: var(--sodium);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.made .absent { color: var(--strontium); }
+
+.empty {
+  color: var(--ash);
+  font-size: 13px;
+  padding: var(--sp-5) 0;
+  max-width: 56ch;
+  line-height: 1.6;
+}
+.empty a { color: var(--prussian); cursor: pointer; text-decoration: underline; }
+
+/* ============================================================ scope */
+
+#scope {
+  border-left: 1px solid var(--rule-firm);
+  background: var(--bench);
+  display: flex;
+  flex-direction: column;
+}
+.scope-head {
+  padding: var(--sp-5) var(--sp-5) var(--sp-3);
+  border-bottom: 1px solid var(--rule-firm);
+  position: sticky;
+  top: 0;
+  background: var(--bench);
+  z-index: 2;
+}
+.scope-head h2 { font-family: var(--serif); font-size: 21px; }
+.scope-sub {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ash);
+  margin: 3px 0 var(--sp-3);
+}
+.find { display: flex; align-items: center; gap: var(--sp-3); }
+#find {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  background: var(--paper);
+  color: var(--ink);
+}
+#find:focus { border-color: var(--prussian); background: var(--bench); }
+.find-hint { font-family: var(--mono); font-size: 10px; color: var(--ash); white-space: nowrap; }
+
+.binding {
+  margin-top: var(--sp-3);
+  background: var(--act);
+  color: #fff;
+  padding: 5px var(--sp-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  border-radius: 2px;
+}
+.binding .lbl { letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; font-size: 9px; }
+.binding .tgt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.binding button {
+  background: rgba(255,255,255,0.18);
+  border: 0;
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 10px;
+  border-radius: 2px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+#scope-body { padding: 0 0 var(--sp-8); }
+
+.grp { border-bottom: 1px solid var(--rule); }
+.grp-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: 7px var(--sp-5) 6px;
+  background: var(--paper-2);
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.grp-head .pos {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  background: var(--fam, var(--ash-line));
+  color: #fff;
+  border-radius: 2px;
+  padding: 0 4px;
+}
+.grp-head .lbl {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--graphite);
+}
+.grp-head .fill { flex: 1; }
+.grp-head .n { font-family: var(--mono); font-size: 10px; color: var(--ash); }
+.grp.pending .grp-head { background: #F7F4EC; }
+.grp.pending .grp-head .lbl { color: var(--ash); }
+
+.tblgrp { padding: 2px 0 6px; }
+.tblgrp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px var(--sp-5) 3px calc(var(--sp-5) + 6px);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ash);
+  letter-spacing: 0.04em;
+}
+.tblgrp-head .t { color: var(--graphite); }
+.tblgrp-head.reads .t { color: var(--ink); font-weight: 600; }
+.tblgrp-head.reads::before {
+  content: 'reads';
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 2px;
+  padding: 0 4px;
+}
+
+.cell-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px 64px 26px;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px var(--sp-5) 2px calc(var(--sp-5) + 14px);
+  cursor: pointer;
+  font-size: 12.5px;
+}
+.cell-row:hover { background: var(--paper-2); }
+.cell-row .r { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.cell-row .r .col { color: var(--ash); font-family: var(--mono); font-size: 10px; margin-left: 5px; }
+.cell-row .v {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--graphite);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cell-row .v .u { color: var(--ash); font-size: 9.5px; margin-left: 3px; }
+.cell-row .spark { width: 64px; height: 14px; margin-left: 6px; }
+.cell-row > span:nth-child(3) { padding-left: 6px; }
+.cell-row .ins {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--act);
+  color: #fff;
+  border: 0;
+  border-radius: 2px;
+  padding: 1px 4px;
+  cursor: pointer;
+  /* Hidden buttons must also be unclickable. At `opacity: 0` with default pointer
+     events these stayed live: 95 invisible targets in a 26 px band. */
+  opacity: 0;
+  pointer-events: none;
+}
+.cell-row:hover .ins, .binding:not([hidden]) ~ * .ins { opacity: 1; pointer-events: auto; }
+#scope-body .cell-row:focus-within .ins { opacity: 1; pointer-events: auto; }
+.cell-row.pending { color: var(--ash); cursor: default; }
+.cell-row.pending .r { color: var(--ash); }
+.cell-row.pending .at {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--ash);
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  padding: 0 4px;
+  justify-self: end;
+}
+
+.copied { animation: flash 700ms var(--ease); }
+@keyframes flash {
+  0%   { background: var(--act); color: #fff; }
+  100% { background: transparent; }
+}
+
+/* ============================================================ chrome */
+
+/* Paper ink on a dark ground is invisible. tokens.css scopes the inversion to
+   `.dark`; these are the studio's own dark surfaces and need the same treatment.
+   Both the computed-value chip and the 'what this step made' panel lost every
+   number to this before it was written down. */
+.made .q, .field.computed .value-cell .q { color: var(--dark-ink); }
+.made .u, .field.computed .value-cell .u { color: var(--dark-ash); }
+.made .q-unit { color: var(--dark-ash); }
+
+/* `display: flex` beats the `hidden` attribute, and every element in this file that
+   toggles with `hidden` also sets a display. Stating it once, for everything, rather
+   than maintaining a list — the list was already wrong twice: the pathway chooser
+   painted over the app on load, and the "start here" band rendered as an empty strip on
+   every project that has nothing to teach. */
+[hidden] { display: none !important; }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(22, 23, 26, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.chooser-panel.wide { min-width: 760px; max-width: 860px; max-height: 76vh; overflow-y: auto; }
+.panel-sub { font-size: 12.5px; color: var(--ash); margin: 4px 0 0; }
+.plugin-row {
+  display: grid;
+  grid-template-columns: 1fr 128px 74px;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+.plugin-row:hover { background: var(--paper-2); }
+.plugin-row.in-use { opacity: 0.42; cursor: default; }
+.plugin-row .nm { display: flex; align-items: baseline; gap: 7px; }
+.plugin-row .nm h3 { font-family: var(--serif); font-size: 16px; }
+.plugin-row .nm .fam {
+  width: 8px; height: 8px; border-radius: 1px;
+  background: var(--fam, var(--ash-line));
+  transform: translateY(-1px);
+}
+.plugin-row p { margin: 1px 0 0; font-size: 12px; color: var(--ash); max-width: 58ch; }
+.plugin-row p .nodesc { font-style: italic; opacity: 0.65; }
+.plugin-row .makes {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--graphite);
+  line-height: 1.5;
+}
+.plugin-row .fit {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ash);
+  text-align: right;
+  white-space: nowrap;
+}
+.plugin-row .fit b { color: var(--act); font-weight: 600; }
+.plugin-row .fit.none b { color: var(--ash); }
+
+.chooser-panel {
+  background: var(--paper);
+  border: 1px solid var(--rule-firm);
+  padding: var(--sp-5) var(--sp-6) var(--sp-5);
+  min-width: 520px;
+  max-width: 640px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.28);
+}
+.chooser-panel ul { list-style: none; margin: var(--sp-3) 0 0; padding: 0; }
+.chooser-panel li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+.chooser-panel li:hover { background: var(--paper-2); }
+.chooser-panel li h3 { font-family: var(--serif); font-size: 18px; }
+.chooser-panel li p { margin: 1px 0 0; font-size: 12.5px; color: var(--ash); max-width: 46ch; }
+.chooser-panel li .c {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.chooser-panel li .c .u { font-size: 10px; color: var(--ash); margin-left: 3px; }
+
+/* Anchored under the masthead rather than over the content. At the bottom it covered
+   three elements of the panel the user had just acted on — including, once, the very
+   description explaining the value they were editing. `pointer-events: none` so it can
+   never intercept a click either. */
+#toast {
+  position: fixed;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: var(--dark);
+  color: var(--dark-ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 7px var(--sp-4);
+  border-radius: 2px;
+  z-index: 30;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  max-width: 70vw;
+}
+#toast.bad { background: var(--strontium); }
+
+.busy { opacity: 0.55; transition: opacity 120ms var(--ease); }
+
+/* ============================================================ figures
+
+   A figure sits on the dark ground for the same reason the made-panel does: the
+   engine computed it and you cannot type into it. */
+
+.fig {
+  margin-top: var(--sp-4);
+  background: var(--dark);
+  color: var(--dark-ink);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+.fig-head { display: flex; align-items: baseline; gap: var(--sp-3); }
+.fig-head .kicker { color: var(--dark-ash); }
+.fig-head .fill { flex: 1; }
+.fig .note {
+  font-size: 12px;
+  color: var(--dark-ash);
+  line-height: 1.5;
+  margin: var(--sp-3) 0 0;
+  max-width: 74ch;
+}
+.fig .note b { color: var(--dark-ink); font-weight: 500; }
+
+/* --- the decomposition ledger --- */
+table.ledger { width: 100%; border-collapse: collapse; margin-top: var(--sp-3); }
+table.ledger td {
+  padding: 3px 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  vertical-align: baseline;
+}
+table.ledger td.n { font-family: var(--sans); font-size: 12.5px; color: var(--dark-ink); }
+table.ledger td.n small { color: var(--dark-ash); font-family: var(--mono); font-size: 9.5px; }
+table.ledger td.v { text-align: right; padding-right: var(--sp-3); width: 92px; }
+table.ledger td.s { text-align: right; color: var(--dark-ash); width: 62px; padding-right: var(--sp-3); }
+table.ledger tr.fam td { border-top: 1px solid var(--dark-rule); padding-top: 7px; }
+table.ledger tr.fam td.n b { font-weight: 600; }
+table.ledger tr.row td.n { padding-left: var(--sp-4); color: var(--dark-ash); font-size: 12px; }
+table.ledger tr.total td {
+  border-top: 1.5px solid var(--dark-ash);
+  padding-top: 7px;
+  font-size: 15px;
+  color: var(--dark-ink);
+}
+table.ledger tr.total td.n { font-family: var(--serif); font-size: 17px; }
+.ledger .bar {
+  display: block;
+  height: 7px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 1px;
+  min-width: 60px;
+}
+.ledger .bar > span { display: block; height: 100%; border-radius: 1px; }
+
+.audit {
+  margin-top: var(--sp-4);
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dark-ash);
+  border-top: 1px solid var(--dark-rule);
+  padding-top: var(--sp-3);
+}
+.audit .mark { font-size: 19px; color: var(--dark-ink); line-height: 1; }
+.audit.bad { color: var(--strontium); }
+
+/* --- annual costs --- */
+svg.annual { width: 100%; height: 190px; display: block; margin-top: var(--sp-3); }
+.fig .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dark-ash);
+  margin-top: var(--sp-2);
+}
+.fig .legend i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 1px; }
+.fig .legend b { color: var(--dark-ink); font-weight: 500; margin-left: 3px; }
+.fig .legend .zeroed { font-style: italic; opacity: 0.7; }
+
+/* --- the calendar --- */
+.cal-picks { display: flex; gap: 5px; flex-wrap: wrap; margin-top: var(--sp-2); }
+.cal-fig .fig-head .cal-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62%; }
+.fig-head { flex-wrap: nowrap; }
+.cal-pick {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  min-height: 22px;
+  background: transparent;
+  border: 1px solid var(--dark-rule);
+  color: var(--dark-ash);
+  border-radius: 2px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+.cal-pick:hover { color: var(--dark-ink); border-color: var(--dark-ash); }
+.cal-pick.on { background: var(--dark-ink); color: var(--dark); border-color: var(--dark-ink); }
+.cal { display: flex; gap: 6px; margin-top: var(--sp-3); align-items: stretch; }
+.cal-hours {
+  position: relative;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  color: var(--dark-ash);
+  width: 20px;
+  text-align: right;
+  flex: none;
+}
+.cal-hours span { position: absolute; right: 0; transform: translateY(-3px); }
+svg.cal-grid { flex: 1; height: 300px; color: var(--copper); background: rgba(255,255,255,0.03); }
+.cal-key {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: 6px 0 0 26px;
+}
+.cal-key .fill { flex: 1; }
+.cal-key .kicker { color: var(--dark-ash); }
+.cal-key .ramp {
+  width: 96px;
+  height: 9px;
+  border-radius: 1px;
+  background: linear-gradient(to right,
+    color-mix(in srgb, var(--copper) 22%, transparent),
+    var(--copper));
+}
+.cal-months {
+  position: relative;
+  height: 13px;
+  margin: 3px 0 0 26px;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  color: var(--dark-ash);
+}
+.cal-months span { position: absolute; }
+.fig-hourly .fig { margin-top: 0; padding: 0; }
+
+/* ============================================================ source drawer */
+
+.source-panel {
+  min-width: 900px;
+  max-width: 1100px;
+  width: 78vw;
+  height: 78vh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+.source-head { display: flex; align-items: center; gap: var(--sp-3); }
+.source-head .fill { flex: 1; }
+.source-head button {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  background: var(--bench);
+  color: var(--graphite);
+  cursor: pointer;
+}
+.source-head button:hover { border-color: var(--graphite); color: var(--ink); }
+.source-head button.primary { background: var(--act); border-color: var(--act); color: #fff; }
+.source-state {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ash);
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.source-state.bad { color: var(--strontium); font-weight: 600; }
+/* ============================================================ the source drawer
+ * A highlighted <pre> with a transparent <textarea> lying exactly on top of it. The
+ * textarea keeps every native editing behaviour — selection, undo, IME, spellcheck off,
+ * caret placement — and the colour is painted behind it. The two must share font,
+ * size, line-height, padding, border and white-space to the pixel, or the caret drifts
+ * from the glyph it is standing next to; everything shared lives in one rule below.
+ *
+ * Monokai, on the one screen in this app that shows you the file as a file. The
+ * worksheet stays on paper: dark here is not decoration, it is a change of register.
+ */
+.source-editor {
+  position: relative;
+  flex: 1;
+  margin-top: var(--sp-3);
+  min-height: 0;
+  border: 1px solid #3B3C35;
+  border-radius: 2px;
+  background: var(--mk-bg);
+  overflow: hidden;
+}
+.source-editor:focus-within { border-color: var(--mk-green); }
+
+#source-hl,
+#source-text {
+  margin: 0;
+  padding: var(--sp-3);
+  border: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-wrap: normal;
+}
+
+#source-hl {
+  position: absolute;
+  inset: 0;
+  /* Hidden, not auto: the textarea is the only thing that scrolls, and a second scrollbar
+     underneath it would both show through and give the two layers different extents. */
+  overflow: hidden;
+  color: var(--mk-fg);
+  pointer-events: none;
+}
+#source-hl code { font: inherit; }
+
+#source-text {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  resize: none;
+  background: transparent;
+  /* The glyphs come from the layer behind; only the caret and the selection are the
+     textarea's own. `transparent` on the text keeps both. */
+  color: transparent;
+  caret-color: var(--mk-caret);
+}
+#source-text::selection { background: #49483E; color: transparent; }
+#source-text:focus { outline: none; }
+
+/* --- Monokai, mapped onto pyH2A's grammar rather than onto markdown's --- */
+#source-hl .t-hash { color: #75715E; }
+#source-hl .t-heading { color: var(--mk-green); font-weight: 600; }
+#source-hl .t-column { color: var(--mk-cyan); font-style: italic; }
+#source-hl .t-rule { color: #4A4B44; }
+#source-hl .t-pipe { color: #5E5F57; }
+#source-hl .t-name { color: var(--mk-fg); }
+#source-hl .t-number { color: var(--mk-purple); }
+#source-hl .t-unit { color: var(--mk-orange); }
+#source-hl .t-value { color: var(--mk-yellow); }
+#source-hl .t-ref { color: var(--mk-pink); }
+#source-hl .t-path { color: var(--mk-yellow); text-decoration: underline dotted #7A7563; }
+#source-hl .t-nil { color: #6B6A5E; }
+#source-hl .t-comment { color: #75715E; font-style: italic; }
+#source-hl .t-loose { color: #9A957F; }
+
+/* --- the remove control: present, never prominent --- */
+.step-head .counts .drop {
+  display: block;
+  margin-left: auto;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  padding: 1px 6px;
+  color: var(--ash);
+  cursor: pointer;
+}
+.step-head:hover .counts .drop { border-color: var(--rule-firm); }
+.step-head .counts .drop:hover { color: var(--strontium); border-color: var(--strontium); }
+
+/* --- the chooser's published constant is not a live result --- */
+.chooser-panel li .c em {
+  display: block;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-style: normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ash);
+  text-align: right;
+}
+
+/* --- year picker on the calendar --- */
+.cal-years { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; margin-top: var(--sp-3); }
+.cal-years .kicker { color: var(--dark-ash); margin-right: 4px; }
+.cal-year {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  background: transparent;
+  border: 1px solid var(--dark-rule);
+  color: var(--dark-ash);
+  border-radius: 2px;
+  padding: 0 5px;
+  cursor: pointer;
+}
+.cal-year:hover { color: var(--dark-ink); border-color: var(--dark-ash); }
+.cal-year.on { background: var(--dark-ink); color: var(--dark); border-color: var(--dark-ink); }
+.cal-pick .yrs { color: var(--sodium); margin-left: 4px; font-size: 8.5px; }
+
+/* ============================================================ the front door
+
+   Solid, not a scrim: until a project is open there is nothing behind this to see,
+   and showing a half-built app through a veil suggests the reader missed a step. */
+
+.overlay.solid { background: var(--paper); align-items: flex-start; justify-content: center; overflow-y: auto; }
+
+.welcome-panel {
+  max-width: 1120px;
+  padding: var(--sp-8) var(--sp-6) var(--sp-7);
+  width: 100%;
+}
+.welcome-panel header { max-width: 66ch; }
+.welcome-panel h1 {
+  font-family: var(--serif);
+  font-size: 40px;
+  font-weight: 400;
+  line-height: 1.08;
+  margin: var(--sp-2) 0 var(--sp-3);
+}
+.welcome-panel .lede { font-size: 15.5px; line-height: 1.6; color: var(--graphite); margin: 0; }
+.welcome-panel .lede a { color: var(--prussian); }
+
+.doors {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-5);
+  margin-top: var(--sp-7);
+  align-items: start;
+}
+.door {
+  border-top: 1.5px solid var(--ink);
+  padding-top: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+}
+.door > p { font-size: 13px; color: var(--graphite); line-height: 1.55; margin: var(--sp-2) 0 var(--sp-3); }
+.door ul { list-style: none; margin: 0; padding: 0; }
+.door li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+.door li:hover { background: var(--paper-2); }
+.door li h3 { font-family: var(--serif); font-size: 16px; font-weight: 400; }
+.door li p { margin: 1px 0 0; font-size: 11.5px; color: var(--ash); max-width: 40ch; line-height: 1.45; }
+.door li .c {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+  text-align: right;
+}
+.door li .c em {
+  display: block;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-style: normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ash);
+}
+
+.namefield { display: flex; align-items: baseline; gap: var(--sp-2); margin-top: var(--sp-3); }
+.namefield span {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ash);
+}
+.namefield input {
+  flex: 1;
+  font-family: var(--serif);
+  font-size: 15px;
+  padding: 4px 8px;
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  background: var(--bench);
+  color: var(--ink);
+}
+.namefield input:focus { border-color: var(--prussian); }
+
+.dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  border: 1px dashed var(--rule-firm);
+  border-radius: 2px;
+  background: var(--paper-2);
+  color: var(--ash);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  cursor: pointer;
+  text-align: center;
+  padding: var(--sp-3);
+}
+.dropzone:hover, .dropzone.over { border-color: var(--act); color: var(--act); background: var(--bench); }
+.door .err { color: var(--strontium); font-size: 12.5px; margin-top: var(--sp-2); }
+
+.welcome-panel footer { margin-top: var(--sp-6); border-top: 1px solid var(--rule); padding-top: var(--sp-3); }
+.tourtoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 13px;
+  color: var(--graphite);
+  cursor: pointer;
+}
+
+.chooser-foot {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  border-top: 1px solid var(--rule);
+  padding-top: var(--sp-3);
+}
+.chooser-foot button {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  background: var(--bench);
+  color: var(--graphite);
+  cursor: pointer;
+}
+.chooser-foot button:hover { border-color: var(--graphite); color: var(--ink); }
+
+/* ============================================================ the walkthrough
+
+   A spotlight on one real element at a time, with the live app underneath. Nothing
+   in the tour is a picture of the app; it is the app. */
+
+/* The container takes pointer events so the veil can swallow clicks aimed at the app
+   behind it; a stray click during the walkthrough used to change the open step. The
+   bubble re-enables them for its own controls. */
+#tour { position: fixed; inset: 0; z-index: 40; }
+#tour-veil {
+  position: absolute;
+  inset: 0;
+  /* A ring rather than a dimmed sheet: dimming a dense worksheet makes it unreadable
+     precisely when the tour is asking you to read it. */
+  box-shadow: 0 0 0 9999px rgba(22, 23, 26, 0.42);
+  border-radius: 3px;
+  transition: all 260ms var(--ease);
+}
+#tour-bubble {
+  position: absolute;
+  width: 330px;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.3);
+  padding: var(--sp-4);
+  pointer-events: auto;
+  transition: all 260ms var(--ease);
+}
+#tour-bubble h3 { font-family: var(--serif); font-size: 18px; font-weight: 400; margin: 3px 0 5px; }
+#tour-bubble p { font-size: 13px; line-height: 1.55; color: var(--graphite); margin: 0; }
+.tour-actions { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-4); }
+.tour-actions .fill { flex: 1; }
+.tour-actions button {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  background: var(--bench);
+  color: var(--graphite);
+  cursor: pointer;
+}
+.tour-actions button.primary { background: var(--act); border-color: var(--act); color: #fff; }
+.tour-actions button:disabled { opacity: 0.4; cursor: default; }
+
+/* A field the walkthrough is pointing at, and one a starter wants you to edit first. */
+.field.coached { background: #FBF4DF; box-shadow: inset 3px 0 0 var(--sodium); }
+.field.coached .idx { color: #8A6A10; font-weight: 600; }
+
+#help-button { min-width: 26px; }
+
+/* ============================================================ what a step is worth
+ * Three verdicts, one shape. The inert case is the one that matters: a step can be
+ * perfectly configured, report "ok", and contribute nothing, because it writes values
+ * that everything downstream has already consumed. Nothing else in the app could say so.
+ */
+.effect {
+  margin: 10px 0 0; padding: 9px 12px; font-size: 12.5px; line-height: 1.5;
+  border-left: 3px solid var(--rule); background: var(--paper-2); color: var(--ink);
+}
+.effect b { font-weight: 600; }
+.effect.saves { border-left-color: var(--fam-cost); }
+.effect.costs { border-left-color: var(--copper); }
+.effect.required { border-left-color: var(--rule); color: var(--ash); }
+.effect.inert { border-left-color: var(--sodium); background: #FBF4DF; }
+.effect .fix {
+  margin-left: 6px; font: inherit; font-weight: 600; cursor: pointer;
+  background: none; border: 0; border-bottom: 1px solid currentColor;
+  padding: 0 0 1px; color: var(--act);
+}
+.effect .fix:hover { background: var(--act); color: #FFF; border-bottom-color: transparent; }
+
+/* -------------------------------------------------- why a file was refused
+ * The element existed from the first build and was only ever hidden. Every bad file,
+ * including every one of pyH2A's own examples, was rejected in silence.
+ */
+#welcome-error {
+  display: grid; gap: 6px; margin-top: 10px; padding: 10px 12px;
+  border-left: 3px solid var(--sodium); background: #FBF4DF;
+  font-size: 12.5px; line-height: 1.5; color: var(--ink);
+}
+#welcome-error[hidden] { display: none; }
+#welcome-error b { font-weight: 600; }
+#welcome-error .d { color: var(--graphite); }
+#welcome-error .saw { font-family: var(--mono); font-size: 11px; color: var(--ash); }
+#welcome-error pre {
+  margin: 0; padding: 7px 9px; overflow-x: auto;
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.45;
+  background: var(--paper); border: 1px solid var(--rule); color: var(--graphite);
+}
+#welcome-error .remedy {
+  justify-self: start; padding: 5px 11px; cursor: pointer;
+  font: inherit; font-weight: 600; color: #FFF;
+  background: var(--act); border: 0;
+}
+#welcome-error .remedy:hover { background: var(--ink); }
+
+/* A door you can operate from the keyboard has to show where you are. */
+#welcome li[role="button"]:focus-visible,
+#welcome .dropzone:focus-within {
+  outline: 2px solid var(--act); outline-offset: 3px;
+}
+#tour-bubble:focus { outline: none; }
+
+/* An unmet row you can act on. The block reads like the call to action; it should be one. */
+.unmet .gap.jump { cursor: pointer; }
+.unmet .gap.jump:hover { background: var(--paper-2); }
+.unmet .gap.jump:focus-visible { outline: 2px solid var(--act); outline-offset: 2px; }
+
+/* A step from the merged defaults has no Workflow row to delete. Say so where the
+ * button would have been, rather than offering a control that can only fail. */
+.step-head .drop.off {
+  font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ash); border-bottom: 1px dotted var(--rule); cursor: help;
+}
+
+/* The bubble's own controls stay clickable inside a veil that now blocks everything. */
+#tour-bubble { pointer-events: auto; }

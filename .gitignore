@@ -1,0 +1,13 @@
+# environments & caches
+.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+.DS_Store
+
+# the static build is produced by deploy/build.py, never committed: a checked-in bundle
+# drifts from the source that made it, and Vercel builds it on every deploy anyway
+studio/deploy/dist/
+
+# Vercel's local link
+.vercel/

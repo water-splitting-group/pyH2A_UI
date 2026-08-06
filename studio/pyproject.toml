@@ -1,0 +1,48 @@
+[project]
+name = "pyh2a-studio"
+version = "0.1.0"
+description = "Paper Plant Studio - step through a pyH2A pipeline, see what every step sees, fix it in place"
+requires-python = ">=3.12"
+dependencies = ["pyH2A"]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.8"]
+
+[tool.uv.sources]
+pyH2A = { path = "../pyH2A", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src"]
+# `scratch/` holds throwaway harnesses, several written by review agents. They are kept
+# because each reproduces a defect that is now fixed, and holding them to the app's
+# conventions would mean rewriting somebody else's evidence.
+exclude = ["scratch"]
+
+[tool.ruff.lint]
+# Same gate as the previous build: rules that are only described lose to defaults.
+select = [
+    "E", "F", "W",   # pycodestyle / pyflakes
+    "N",             # naming
+    "C901",          # complexity cap
+    "PLR",           # pylint refactor (nesting, returns, args)
+    "PLC0415",       # imports at top only
+    "BLE001",        # no blind except
+]
+ignore = [
+    "PLR2004",       # magic numbers in display code are fine
+    "E501",          # line length handled by convention, not the linter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["PLR"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 7
+max-positional-args = 6

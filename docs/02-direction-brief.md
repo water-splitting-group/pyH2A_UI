@@ -1,0 +1,100 @@
+# pyH2A — Open Work & Forward Direction
+
+Scope: every open PR (19) and open issue (20) on `water-splitting-group/pyH2A` as of 2026-08-05, plus the closed LCA/Monte-Carlo arc (#175/#162/#160), cross-checked against the local master clone at commit a15e7bb. Written for whoever designs the Streamlit/stlite UI.
+
+**Glossary of project-specific terms used below** (defined once, here):
+- **TEA** — techno-economic analysis; the discounted-cash-flow (DCF) side that produces a levelized cost.
+- **LCOH** — levelized cost of hydrogen, the headline TEA output. After PR #176 it is really "levelized cost of *product*" (`run_pyH2A.py` prints `Levelized cost of product (base case)`).
+- **LCA** — life-cycle assessment; environmental impacts (climate change, cumulative energy demand, acidification) computed from openLCA matrix exports.
+- **Plugin** — a Python class in `src/pyH2A/Plugins/` that reads from and writes to the shared `dcf.inp` dictionary; the workflow is an ordered list of plugins declared in the input file.
+- **input_dict / output_dict** — declarative per-plugin specs of what a plugin reads and writes (`Production_Plugin.py:43` and `:105`); resolved by `input_resolver_function` / `output_inserter_function` (`Production_Plugin.py:147,151`).
+- **Quantity** — value+unit object (`Utilities/Unit_Handler/quantity.py`) that replaced raw floats everywhere in the refactor.
+- **Functional unit** — the denominator of the levelized result. Formerly hard-wired to kg H2; now declared in a `# Functional Unit` table and resolved by `Utilities/functional_unit.py`.
+- **Upper-level file** — a small markdown input file that merges over a base file to override a handful of values; the mechanism used for perturbation tests.
+
+---
+
+## 1. Where the project is heading
+
+Five workstreams are visibly active. The refactor arc (#151 plugin I/O, #138 Time/Inflation plugins, #176 post-workflow + flexible functional units) is **done and merged**; everything open is consolidation on top of it.
+
+**(a) Generalising beyond hydrogen — the biggest strategic move.**
+PR #176 (merged 2026-07-30) turned discounted cash flow into a plugin (`Discounted_Cash_Flow_Plugin.py`, +803 lines), gutted `Discounted_Cash_Flow.py` (+30/−527), and made the functional unit user-declared. Master now ships **three** default workflows instead of one: `Config/Defaults_TEA.md` (9 plugins, 100→900, ending in DCF), `Config/Defaults_LCA.md` (Time→Production→LCA at 300), `Config/Defaults_TEA_LCA.md` (LCA at 1000). `src/tests/end_to_end/PV_E_Electricity_Production_Test.md:11` declares `Functional Unit | kWh` — i.e. pyH2A now computes levelized cost of *electricity*. PR #179 (open, 2026-08-05, axfache) is the first bug fallout: `Production_Plugin` built the plant-capacity dimension as `f"{dimension}/time"`, which is wrong for energy (must be *power*); fixed to use `functional_unit.dimension_per_time`, motivated by "working on the battery project". **Read: hydrogen is becoming one case among several (electricity, batteries), and the team is actively using it that way.**
+
+**(b) LCA + Monte-Carlo productionisation — the largest unlanded body of work.**
+PR #160 (Sherman–Morrison shortcut LCA, sparse solvers, RAM+disk caching, 21 openLCA-derived test cases) and PR #162/#175 (parallel Monte Carlo via `ProcessPoolExecutor`, MC response generalised from H2-cost to *any* LCA metric, plot labels/units/ranges moved to a config file) are all **closed unmerged**, blocked on Jacob's review demands: a real end-to-end test where the LCA table holds *paths* to plugin-computed values, with ground truth from OpenLCA rather than from pyH2A itself (#162 review); "the LCA test code structure needs to be completely reworked", no test classes, cache must never need manual clearing (#160 review). Supporting perf PRs #161 (lru_cache on `parse_composite_unit`), #163 (optional `scikit-umfpack`/`pypardiso` solvers), #164 (the memory-leak fix) are open and untouched since 2026-08-04.
+**Critical fact for UI planning:** `Defaults_LCA.md:7` and `Defaults_TEA_LCA.md:14` both reference `Life_Cycle_Assessment_Plugin`, but **no such file exists in `src/pyH2A/Plugins/` on master** (verified by glob of every `.py` in the package and by grep — the only matches are the two config files). Master's LCA is the older `src/pyH2A/LCA/LCA.py` class. [INFERENCE] Selecting the LCA or TEA+LCA default workflow on master will fail at plugin load. The working LCA lives on branch `feat/lca-on-master`.
+
+**(c) Documentation for non-programmers — an explicit, stated target-audience shift.**
+PR #96 (open since 2026-05-12) and its manual re-implementation PR #169 (open, 2026-07-22) add `doc/Overview.rst` (+274) and `doc/dictionary_structure.rst` (+470). axfache's framing is unusually explicit: *"Target users are not necessarily advanced Python developers… reverse engineering the code is time-consuming, error-prone, and, ultimately, can deter potential users"*; the key word is *"hierarchization of the information"*; pages must stay short because "writing the equivalent of 100 printed pages would be counter-productive". #169 deliberately **drops** PR #96's third component — plain-maths descriptions of each plugin — because "the current version would be outdated due to what was done in the refactor… we wait for the plugins to be fully stabilised". Issue #141 (document non-trivial error messages) is the runtime counterpart: some messages "are basically incomprehensible and can require quite a lot of time to troubleshoot", and AI assistance often fails on them.
+
+**(d) Test-coverage buildout to lock the refactor down.**
+Issue #137 (jschneidewind) specifies end-to-end *perturbation* tests: one plugin's inputs changed enough to move LCOH significantly, structured by parent file, ground truth from master. PRs #150 (PEC, 10 files), #156 (Thermal, 6), #158 (Photocatalytic, 4), #159 (PV_E, 8) implement it — all open, all stale since 2026-07-30, all bloated by the #176 merge (each now shows 76–82 changed files instead of the ~10 they should). Review culture here is heavy and domain-driven: axfache rejects perturbations that "break the laws of thermodynamics" (#159), demands realistic magnitudes ("1000 USD/MWh, so we also check the change of unit" — #159), and insists comments express *difference from reference* ("2x the reference value from Kang 2015" — #158). Jacob wants ≤5–10 inputs changed per file with >50% deltas (#150). PR #130 (coverage badge + pytest-cov) is the CI half, open since 2026-06-16 across five review rounds.
+
+**(e) Repo restructuring and naming stabilisation.**
+PR #171 moves `src/tests/` → `tests/` (Hanan-Nawaz; gulzerr attempted the same in the closed PR #50). PR #178 groups plugins into `Core/Energy/Finance/Hydrogen/Process_Units/Testing` subdirectories — Jacob's review requires input files to then name plugins as `Hydrogen/Electrolyzer_Plugin` (folder/plugin_name), i.e. **a breaking change to every input file's Workflow table**. PR #167 adds a physical-properties package (`Utilities/Physical_Properties/`) for mass/energy balances, restructured on review into strict data-vs-calculation separation; it is a declared blocker for upcoming compressor and cooler-condenser plugins (#167 comment) and for the solar-hydrogen LCA study (#143). Naming issues #83, #101, #173, #174, #75 and unit bug #116 are the cleanup queue.
+
+Process note: planning also lives outside GitHub — a Mattermost board (card URL in #143) and a private `pyH2A-internal-docs` repo (referenced in PR #9). Ground truth for tests is pinned on `legacy/*` branches (`legacy/pre-refactor`, `legacy/e2e_pec`, `legacy/e2e_thermal`, `legacy/e2e_photocatalytic`).
+
+---
+
+## 2. Team map
+
+| Person | Role | Owns | Evidence |
+|---|---|---|---|
+| **@jschneidewind** (Jacob) | Maintainer / architect. Reviews everything; the only merger. | Core architecture: plugin I/O refactor (#151), units/paths (#120, #122, #98), docstrings (#123), RTD setup (#165), post-workflow + flexible functional unit (#176). Files the architectural issues: #137, #170, #173, #174, #114, #144. | Authored those merged PRs; CHANGES_REQUESTED on #130, #150, #153/#154/#155, #158, #160, #162, #167, #171, #178. |
+| **@axfache** | Domain expert (chemical/process engineering). The physical-plausibility conscience and the documentation voice. | Documentation for non-programmers (#96, #169), physical properties package (#167, #143), Time/Inflation plugins (#138), most single-plugin refactors (#71, #72, #73, #76, #77, #78, #82), functional-unit bugfix (#179). | Authored 13 of the 20 open issues: #75, #83, #85, #86, #87, #88, #89, #95, #101, #116, #133, #141, #143. |
+| **@HomaHamedi207** (Homa) | LCA + Monte Carlo + performance. Works the heaviest numerical path. | Sherman–Morrison LCA (#160), MC parallelisation/generalisation (#162, #175), lru_cache memory leak (#152 → #164), unit-parse caching (#161), optional sparse solvers (#163), LCA-driven plugin I/O additions (#153 RO, #154 battery, #155 electrolyzer). | Authored those PRs; issues #152, #132. |
+| **@Hanan-Nawaz** | Test infrastructure and repo hygiene. Highest PR volume. | e2e perturbation suites (#150, #156, #158, #159), tests→root move (#171), plugin subdirectories (#178), coverage badges (#130), early MC bugfix (#9), plugin refactors (#62, #64, #67, #74, #139). | Authored those; issue #172. |
+| **@gulzerr** | Build/CI/tooling engineer. Appears dormant — no activity after 2026-07-24. | uv adoption (#5), uv.lock fix (#10), CI/CD pipelines (#17, #48), python-version pinning (#31), autopep8 (#29), arbitrary input merger + tests (#33), e2e reference files (#40), IO-resolver docstrings (#81). | Merged #5/#6/#10/#17/#29/#31/#33/#40/#48; closed #12/#24/#34/#46/#47/#50. |
+| **@shodhan-uvs** | Newest contributor, single focused PR. | Quantity reference labels (#157) — `Quantity(10, 'kg[H2]')`, four review rounds, 61 tests. | Only PR authored, open since 2026-07-08. |
+
+---
+
+## 3. UI implications
+
+**The dataflow schematic is a literal, already-specified feature request (#86).** axfache: "Knowing which plugin has which input / output is absolutely necessary to guide a workflow… Tracking the variables manually or from the documentation is long, tedious and a real source of mistakes." He asks for (i) a clean IO table for the five default plugins, (ii) per-example tables in workflow order, and — verbatim — "*Instead of tables we could even have a schematic with arrows showing the variables going from a plugin to another, or entering one without emerging from another (meaning it has to come from the input file), or bypassing a plugin*", closing with "The IO resolver will definitely enable to make it basically automatic." **This is buildable today**: `Utilities/docstring_generation.py` already walks `input_dict`/`output_dict` to generate documentation ("so the docstring can never drift from the spec it describes"), so the same traversal yields nodes, edges, and the three edge classes axfache names (plugin→plugin, file→plugin, pass-through). Shipping this in the UI closes the single most-cited pain point in the tracker.
+
+**Non-programmers are the stated audience (#96/#169), which is the UI's whole justification.** The docs PRs are trying to solve, in prose, the problem a UI solves in pixels. Their constraints transfer directly: hierarchize (progressive disclosure), stay short, and *guide navigation explicitly* — #96 calls out that "`input_modification` could raise the expectation that it only handles inputs" and that "a new user can be confused about what we call 'Utilities' in the folder structure". A UI should never surface internal module names as user-facing labels.
+
+**Error messages need translation, not passthrough (#141).** The team has an open issue admitting some messages "are basically incomprehensible" and that this is a deliberate consequence of "the choice to keep the code simple enough rather than capturing explicitly each possible exception". The requested remedy is a shared page mapping message → possible causes, updated as encountered. A UI that catches exceptions and renders a plain-language cause list (raw traceback behind a toggle) implements #141 where users actually hit it.
+
+**Naming is unstable — do not hard-code labels.** Four open renames are queued: `Discounted_Cash_Flow.py` (#174); the `Financial Input Values` table, which today holds time data and is "confusing for pure LCA calculations" (#173); `*Cost*` table singular/plural inconsistency (#101); and a general review because "the naming should be self-sufficient for users to grasp the meaning from the name" — named offenders `capacity_decrease` (actually the *remaining* fraction), `Multiple_Modules_Plugin` (actually staff scaling), `Replacement frequency` (actually a periodicity, not 1/time) (#83). Plus the `solar_concentator` typo (#75). **Design implication:** drive every label from a display-name map keyed on table/row names, and expect `Financial Input Values` to split. PR #178 will additionally change how plugins are named in input files (`Hydrogen/Electrolyzer_Plugin`) — a workflow editor must tolerate both forms.
+
+**The functional unit is now a first-class user choice.** Each `Config/Defaults_*.md` carries a `# Functional Unit` table (`Functional Unit | kg | kg[H2] is functional unit`), and the kWh variant is already tested. Expose unit selection and relabel outputs accordingly ("levelized cost of product", not LCOH) — and beware PR #179's class of bug, where energy functional units need power-dimensioned capacity.
+
+**Three run modes, not one.** TEA-only, LCA-only, TEA+LCA (`Defaults_TEA.md`, `Defaults_LCA.md`, `Defaults_TEA_LCA.md`). A mode selector is the natural top-level control — but see wart 3: LCA modes do not resolve on master.
+
+**LCA/Monte-Carlo requirements to anticipate.** LCA needs an on-disk `Matrix Folder` of openLCA exports (A/B/C `.npz`, `f.npy`, `index_*.csv` — see `data/LCA/PV_E_Base.md:1-5`; one `index_A.csv` in #160 is 17,189 rows) plus UUID-keyed component tables. Monte Carlo in #162/#175 uses `ProcessPoolExecutor` with worker count, sample count, seeds, and a Savitzky–Golay filter used *only for plotting* (Jacob, #162: "we can put a flag in… to turn it off"). Responses are generalised beyond H2 cost to climate change / cumulative energy demand, with labels/units/ranges in a config file. **For browser-only stlite:** multiprocessing, `pypardiso`/`scikit-umfpack` (#163), and large on-disk matrix caches are non-starters; MC at 50,000 samples took 250–300 s natively (#161 comment). Plan small sample counts, single-process execution, bundled or uploaded matrix folders.
+
+**Plot output is file-based today.** `run_pyH2A.py` detects methods containing `plot`/`figure`/`chart` and injects `directory` + `input_file_name` so they write to disk. Seven analysis modules exist (`Monte_Carlo_Analysis`, `Sensitivity_Analysis`, `Waterfall_Analysis`, `Cost_Contributions_Analysis`, `Comparative_MC_Analysis`, `Development_Distance_Time_Analysis`, `Optimization_Analysis`). In-browser figures require intercepting that convention rather than reading files.
+
+**Optional plugin outputs are conditional — render defensively.** #153/#154/#155 add outputs that exist only when an optional input is supplied (e.g. `Number of electrolyzers required` only when `Unit nominal power` is given — #155 comment quoting the guard). Result panels must treat absent keys as normal, not as errors.
+
+**Quantity reference labels are coming (#95/#157).** `Quantity(10, 'kg[H2]')`: bracketed content ignored in math, preserved in `__repr__`, position-aligned for composites like `kg[H2]/kg[H2O]`. If merged, this hands the UI free provenance strings for disambiguating same-unit values — exactly what the #86 IO table needs.
+
+---
+
+## 4. Known warts a UI should defend against or surface
+
+1. **Unrealistic default electricity price (#89).** `Grid Electricity > Cost = 10000.12 $/kWh` — "orders of magnitude above typical values", unresolved since 2026-05-07. Verified live at `data/PV_E/Base/PV_E_Base.md:167`, `data/LCA/PV_E_Base.md:180`, `src/tests/end_to_end/PV_E_Base_test.md:167`. Any UI shipping PV_E as a starter example inherits it. Surface a plausibility warning; do not silently "fix" it — e2e ground truths depend on the value.
+2. **Replacement plugin internal inconsistency (#170, bug).** "Contributions are created before yearly_inflated, but in yearly_inflated, the construction years are then set to 0, leading to a disagreement" — a cost breakdown that does not sum to the total. Cost-contribution charts will not add up for replacement costs.
+3. **LCA default workflows point at a non-existent plugin.** `Defaults_LCA.md:7` / `Defaults_TEA_LCA.md:14` name `Life_Cycle_Assessment_Plugin`; the package has no such module. Gate LCA modes until `feat/lca-on-master` lands (#160).
+4. **Float-vs-array shape inconsistency across technologies (#87, bug).** `Technical Operating Parameters and Specifications > Output per Year > Value` is a per-year *array* in PV_E (aging) but a *float* in photocatalytic. Generic renderers/plotters must handle both. Related: #114 — plugins still reach into `dcf.inp` for construction time and plant life instead of a harmonised time interface.
+5. **Ambiguous "Other Variable Operating Cost" semantics (#133).** Summed as-is, never scaled by production, unused in every e2e file; the team has not decided whether to scale it, rebase it on output-at-gate, or delete it. Treat as unstable; consider hiding it.
+6. **Duplicate/overlapping water inputs (#88).** PV_E specifies both `Reverse Osmosis > Power Demand` and a `Process water` utility at 10 L/kg H2 / 0.006 $/L; unclear whether the latter double-counts the former's electricity.
+7. **Confusing lookup-table units (#85).** `Lookup_Tables/Utility_Cost/Industrial_Electricity_AEO_2017_Reference_Case` labels a price "per GJ LHV" (meaningless for electricity) and mentions both GJ and kWh while reporting one value.
+8. **Unsupported unit string slips through (#116).** `Quantity(peak_TOF_hourly, '1/hour')` in the Photocatalytic plugin — canonical symbol is `h`; it escaped detection because that variable is not covered by `output_dict` checks. So `output_dict` validation is not total; unit errors can reach results.
+9. **Quantity objects are unhashable-by-value (#152).** No `__eq__`/`__hash__`, so any `lru_cache` keyed on them misses every time and grows unbounded — Homa's demo showed 2,000 identical calls producing 2,000 cache entries, and MC runs crashed machines. Fixed at one call site only (#164, unmerged). Never memoize on Quantity objects in UI code.
+10. **Rounding-sensitive expectations.** #158 initially failed on `376.51467091314566` vs `376.514670913145 ± 1e-13`. Never compare or display levelized cost at full float precision.
+11. **Override files can silently no-op.** Perturbation reviews repeatedly flag upper-level files that "just repeat the base value" (#158). A diff view (override vs base) prevents the user-facing version of this mistake.
+12. **Physical constants are deliberately imprecise.** #167 notes H2 molecular weight is declared locally in PEC, Photocatalytic and Solar_Thermal plugins with "usual round values", and adopting accurate values would require updating every e2e expected value. Do not present results as high-accuracy.
+
+---
+
+## 5. Cadence and process signals
+
+- Review is strict and slow: PR #130 has five review rounds over six weeks; #157 has four; #150/#156/#158/#159 all stalled 2026-07-30. Nothing merges without jschneidewind.
+- The #176 merge polluted every long-lived branch — Jacob told both #130 and #171 "might be easiest to do a fresh PR of master". Expect churn in these PRs' final shapes.
+- Ground-truth discipline recurs: test expectations must come from `legacy/*` branches or OpenLCA, never from pyH2A's own current output (#155, #162 reviews).
+- The PR template (`.github/pull_request_template.md`) is used consistently — Description / Motivation / Related Issues / Type / How Tested / Checklist.

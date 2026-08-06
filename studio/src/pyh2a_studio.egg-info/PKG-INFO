@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: pyh2a-studio
+Version: 0.1.0
+Summary: Paper Plant Studio - step through a pyH2A pipeline, see what every step sees, fix it in place
+Requires-Python: >=3.12
+Requires-Dist: pyH2A

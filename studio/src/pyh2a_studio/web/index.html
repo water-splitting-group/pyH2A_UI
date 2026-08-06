@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Paper Plant Studio</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="studio.css">
+</head>
+<body>
+
+<!-- The masthead carries the four facts that are true no matter which step is
+     open: what is loaded, how long it took, what it costs, and whether anything
+     is wrong. Nothing here scrolls away. -->
+<header id="masthead">
+  <div class="brand">
+    <span class="mark">paper plant</span>
+    <span class="sep">·</span>
+    <span class="surface" id="surface-name">worksheet</span>
+  </div>
+  <h1 id="project-name">no project</h1>
+  <div class="grow"></div>
+  <button class="chooser" id="open-button" type="button">open a pathway ▾</button>
+  <button class="chooser" id="source-button" type="button">source</button>
+  <button class="chooser" id="help-button" type="button" title="walk through the studio">?</button>
+  <dl class="readouts">
+    <div><dt>steps</dt><dd id="stat-steps">—</dd></div>
+    <div><dt>run</dt><dd id="stat-run">—</dd></div>
+    <div><dt id="stat-cost-label">levelized</dt><dd id="stat-cost" class="cost">—</dd></div>
+  </dl>
+  <button class="flag" id="flag-button" type="button" hidden></button>
+</header>
+
+<!-- Three columns, fixed roles: where you are, what this step needs,
+     what it can reach. -->
+<!-- What to change first. A scaffold that runs hands you forty placeholders and no
+     route in; this is the route, and it goes away once you have used it. -->
+<div id="firstedits" hidden>
+  <span class="kicker">start here</span>
+  <span id="firstedits-list"></span>
+  <span class="fill"></span>
+  <button id="firstedits-close" type="button" title="dismiss">×</button>
+</div>
+
+<main id="sheet">
+  <nav id="rail" aria-label="workflow">
+    <div class="rail-head">
+      <span class="kicker">workflow</span>
+      <span class="rail-sub" id="rail-sub">execution order</span>
+    </div>
+    <div class="rail-body">
+      <div id="rail-edges" aria-hidden="true"></div>
+      <ol id="rail-list"></ol>
+    </div>
+    <div class="rail-foot">
+      <div id="rail-flow" class="rail-flow"></div>
+      <div id="rail-legend"></div>
+    </div>
+  </nav>
+
+  <section id="needs" aria-label="what this step needs"></section>
+
+  <aside id="scope" aria-label="what is available here">
+    <div class="scope-head">
+      <h2>What is available here</h2>
+      <p class="scope-sub" id="scope-sub"></p>
+      <div class="find">
+        <input id="find" type="search" placeholder="find a value by table, row or unit…"
+               autocomplete="off" spellcheck="false">
+        <span class="find-hint" id="find-hint"></span>
+      </div>
+      <div class="binding" id="binding" hidden></div>
+    </div>
+    <div id="scope-body"></div>
+  </aside>
+</main>
+
+<!-- The front door. Not a modal over a half-built app: until something is open there
+     is nothing behind it, and a first-time reader is told what this is before being
+     asked to choose. -->
+<div id="welcome" class="overlay solid" hidden>
+  <div class="welcome-panel" role="dialog" aria-modal="true"
+       aria-labelledby="welcome-title" tabindex="-1">
+    <header>
+      <span class="kicker">paper plant · studio</span>
+      <h1 id="welcome-title">What does it cost to make this?</h1>
+      <p class="lede">A worksheet over <a href="https://github.com/water-splitting-group/pyH2A"
+        target="_blank" rel="noreferrer">pyH2A</a>. A project is one markdown file of
+        tables; the engine runs a pipeline of plugins over it and returns a levelized
+        cost. This shows you that pipeline one step at a time — what each step needs,
+        what it can already reach, what it produced — and lets you change any of it and
+        watch the number move.</p>
+    </header>
+
+    <section class="doors">
+      <div class="door" id="door-open">
+        <span class="kicker">read a published pathway</span>
+        <p>Five of pyH2A's own reference models, each reproducing its published cost.
+          The fastest way to see what a complete pipeline looks like.</p>
+        <ul id="welcome-examples"></ul>
+      </div>
+
+      <div class="door" id="door-new">
+        <span class="kicker">start your own</span>
+        <p>The nine-step techno-economic backbone with a placeholder plant. It runs
+          immediately, so every number is one you can change and watch move.</p>
+        <ul id="welcome-starters"></ul>
+        <label class="namefield">
+          <span>call it</span>
+          <input id="welcome-name" type="text" placeholder="New pathway" spellcheck="false">
+        </label>
+      </div>
+
+      <div class="door" id="door-upload">
+        <span class="kicker">open a file</span>
+        <p>A pyH2A <code>.md</code> input file from your own work. Nothing is uploaded
+          anywhere — it is parsed here.</p>
+        <label class="dropzone" id="welcome-drop" role="button" tabindex="0"
+          aria-label="choose a pyH2A markdown file, or drop one here">
+          <input id="welcome-file" type="file" accept=".md,.txt,text/markdown" hidden>
+          <span>choose a file, or drop one here</span>
+        </label>
+        <p class="err" id="welcome-error" hidden></p>
+      </div>
+    </section>
+
+    <footer>
+      <label class="tourtoggle">
+        <input type="checkbox" id="welcome-tour" checked>
+        <span>walk me through it the first time</span>
+      </label>
+    </footer>
+  </div>
+</div>
+
+<div id="chooser" class="overlay" hidden>
+  <div class="chooser-panel">
+    <span class="kicker">open a pathway</span>
+    <ul id="chooser-list"></ul>
+    <div class="chooser-foot">
+      <button id="chooser-new" type="button">start a blank plant</button>
+      <button id="chooser-upload" type="button">open a file…</button>
+      <input id="chooser-file" type="file" accept=".md,.txt,text/markdown" hidden>
+    </div>
+  </div>
+</div>
+
+<!-- The walkthrough: a spotlight on one real element at a time, with the app live
+     underneath. Nothing here is a mock. -->
+<div id="tour" hidden>
+  <div id="tour-veil"></div>
+  <div id="tour-bubble" role="dialog" aria-modal="true" aria-labelledby="tour-title"
+       aria-describedby="tour-body" tabindex="-1">
+    <span class="kicker" id="tour-step"></span>
+    <h3 id="tour-title"></h3>
+    <p id="tour-body"></p>
+    <div class="tour-actions">
+      <button id="tour-skip" type="button">skip</button>
+      <span class="fill"></span>
+      <button id="tour-back" type="button">back</button>
+      <button id="tour-next" type="button" class="primary">next</button>
+    </div>
+  </div>
+</div>
+
+<div id="plugins" class="overlay" hidden>
+  <div class="chooser-panel wide">
+    <span class="kicker">add a step</span>
+    <p class="panel-sub" id="plugins-sub"></p>
+    <ul id="plugins-list"></ul>
+  </div>
+</div>
+
+<div id="source" class="overlay" hidden>
+  <div class="chooser-panel source-panel">
+    <div class="source-head">
+      <span class="kicker">the file — everything on screen is a view of this</span>
+      <span class="fill"></span>
+      <span id="source-state" class="source-state"></span>
+      <button id="source-download" type="button">download .md</button>
+      <button id="source-apply" type="button" class="primary">apply</button>
+      <button id="source-close" type="button">close</button>
+    </div>
+    <div class="source-editor">
+      <pre id="source-hl" aria-hidden="true"><code></code></pre>
+      <textarea id="source-text" spellcheck="false" autocapitalize="off"
+        autocorrect="off" aria-label="the project file, as text"></textarea>
+    </div>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+
+<script type="module" src="studio.js"></script>
+</body>
+</html>

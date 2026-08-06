@@ -1,0 +1,3 @@
+[submodule "pyH2A"]
+	path = pyH2A
+	url = https://github.com/water-splitting-group/pyH2A.git

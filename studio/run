@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+#
+# One command to run the studio, from a cold clone.
+#
+#   ./run            the desktop app on http://localhost:8730
+#   ./run build      the static build, served on http://localhost:8000
+#   ./run test       the suite and the linter
+#
+# The only prerequisite is uv (https://docs.astral.sh/uv/). Everything else — the Python
+# version, the dependencies, the pyH2A checkout — is arranged here, because "clone it and
+# run it" should not begin with a paragraph about environments.
+
+set -euo pipefail
+cd "$(dirname "$0")"
+
+ENGINE=../pyH2A
+PORT="${PORT:-8730}"
+
+need_uv() {
+  command -v uv >/dev/null 2>&1 || {
+    echo "uv is not installed. One line:"
+    echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+    exit 1
+  }
+}
+
+need_engine() {
+  # Three states, three different things to say. The old check tested for a *directory*,
+  # which an uninitialised submodule satisfies while being completely empty — and then
+  # the refactor check below failed and told you to pull master, which was not the
+  # problem and not the fix.
+  if [ ! -e "$ENGINE/src/pyH2A/Plugins/Electrolyzer_Plugin.py" ]; then
+    if [ -d "$ENGINE" ] && git -C .. rev-parse --git-dir >/dev/null 2>&1; then
+      echo "pyH2A is a submodule and has not been checked out yet. Fetching it:"
+      git -C .. submodule update --init --depth 1 pyH2A
+    else
+      echo "pyH2A is not beside this folder. Cloning it:"
+      git clone --depth 1 https://github.com/water-splitting-group/pyH2A.git "$ENGINE"
+    fi
+  fi
+
+  # The studio is built on the post-refactor declarative plugin specs: every field's
+  # bounds, dimension and description come from them. On an older checkout the app starts
+  # and then shows empty forms, which is a confusing way to learn you have the wrong
+  # branch, so it is checked here instead.
+  grep -rq "input_dict" "$ENGINE/src/pyH2A/Plugins/Electrolyzer_Plugin.py" || {
+    echo "The pyH2A checkout at $ENGINE predates the plugin refactor."
+    echo "The studio needs declarative input_dict/output_dict specs — pull master."
+    exit 1
+  }
+}
+
+need_uv
+need_engine
+
+case "${1:-serve}" in
+  serve)
+    echo "Paper Plant Studio on http://localhost:$PORT"
+    exec env UV_PYTHON=3.12 uv run --with-editable . \
+      python -m pyh2a_studio.server --port "$PORT"
+    ;;
+  build)
+    UV_PYTHON=3.12 uv run --with scipy --with-editable . python deploy/build.py
+    echo
+    echo "Serving the static build on http://localhost:8000 — Ctrl-C to stop."
+    exec python3 -m http.server --directory deploy/dist 8000
+    ;;
+  test)
+    UV_PYTHON=3.12 uv run ruff check src/ tests/ deploy/
+    exec env UV_PYTHON=3.12 uv run --with-editable . pytest -q
+    ;;
+  *)
+    echo "usage: ./run [serve|build|test]"
+    exit 2
+    ;;
+esac
