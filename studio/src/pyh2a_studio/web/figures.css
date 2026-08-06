@@ -360,8 +360,11 @@
 
 .cf-plot { position: relative; min-width: 0; }
 .cf-plot svg { display: block; width: 100%; height: auto; overflow: visible; }
-.cf-plot { --plot-min: 480px; }
-.cf-plot svg { min-height: var(--plot-min); }
+/* No floor on the height. One existed to fill a 128px gap beside the summary column,
+   from the days when a floated payback callout left the plot only 723px of width; the
+   plot takes the full width now and is naturally taller than the summary at every
+   desktop size. Kept, the floor letterboxed the drawing inside its own box between 900
+   and 1200px — 480px of box around 353px of chart. */
 /* SVG's initial fill is black, and it inherits. A group of stroke-only gridlines
    therefore paints every one of its paths as a filled black shape unless told not to —
    which is what turned the whole plot into one olive wash over the bars. Every
@@ -656,10 +659,47 @@ svg.cal-grid { display: block; width: 100%; height: 300px; }
   pointer-events: none;
 }
 
+/* ============================================================ figures on a phone
+ *
+ * These plates were laid out for a 1400px modal and the mobile block below was three
+ * lines long, so opening one on a 390px screen scrolled sideways to 489px: the cost
+ * cascade's dark slab is two columns holding a four-across row of family cards, and
+ * `repeat(4, max-content)` is 544px whatever the screen is. Nothing here reflows a
+ * figure into a different figure — the columns stack, the fixed tracks come off, and
+ * anything that cannot be read at this width is dropped rather than clipped.
+ */
 @media (max-width: 900px) {
-  .dc-row { grid-template-columns: 20px 1fr 78px 54px; }
-  .dc-lane { grid-column: 2 / -1; }
+  /* Stream rows: register and name on one line, value and share under them, bar last.
+     Four tracks across 366px left the share column half off the plate. */
+  /* `.kicker` carries 0.1em of letter-spacing, which the last character keeps as
+     trailing space, so a share column flush to the content edge read as a clipped
+     "SHARE". Four pixels of air rather than a negative margin on one label. */
+  .dc-row { grid-template-columns: 20px 1fr auto; row-gap: 2px; padding-right: 4px; }
+  .dc-name { grid-column: 2 / -1; }
+  .dc-val { grid-column: 2; text-align: left; }
+  .dc-share { grid-column: 3; }
+  .dc-lane { grid-column: 1 / -1; overflow: hidden; }
+  .dc-axis .dc-lane { display: none; }
+
+  /* The slab is a hero beside an audit beside four family cards. One column. */
+  .dc-slab { grid-template-columns: 1fr; gap: var(--sp-4); }
+  .dc-fam-cards { grid-template-columns: 1fr 1fr; }
+  .dc-hero-n { font-size: 30px; }
+
+  .cf-head { flex-direction: column; gap: var(--sp-2); }
+  .cf-hero { max-width: none; text-align: left; }
   .cf-body { grid-template-columns: 1fr; gap: var(--sp-4); }
-  .cf-hero { float: none; margin: 0 0 var(--sp-2); text-align: left; }
+  /* Fitted to 366px the plot is a postage stamp: a 1160-unit viewBox at 0.32 scale
+     renders the year labels 3px tall. The shape survives that and every word on it does
+     not, so the plot becomes a scroll pane at a width where its own type is legible and
+     the reader swipes it. Nothing is dropped and nothing is redrawn — the summary and
+     the legend above it are already full-width and carry every number in the figure. */
+  .cf-plot { overflow-x: auto; overflow-y: hidden; }
+  .cf-plot svg { min-width: 760px; overflow: hidden; }
+  /* The final cumulative is labelled in the gutter the desktop plot leaves to its
+     right. There is no gutter at 366px, so the label was clipped mid-word against the
+     plate edge — and the same number is the last row of the summary above it. */
+  .cf-gutter { display: none; }
+
   .cal-hod { display: none; }
 }
