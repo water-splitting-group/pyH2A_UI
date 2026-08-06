@@ -647,6 +647,52 @@ def test_the_unit_stays_editable_after_the_value_is_entered():
     assert after['unit']['column'] == 'Unit'
 
 
+def test_overriding_a_default_keeps_the_unit_the_default_came_with():
+    '''Twelve financial values arrive from `Defaults_TEA.md` and PV+E's own file has no
+    `Financial Input Values` table, so editing one creates an override row. The padding
+    that fills the untouched columns took the unit from the plugin's declared dimension
+    — which for `time` is the SI base — and wrote `Plant life | 25 | s`. The engine read
+    a 25-second plant, the Electrolyzer failed, and no screen connected the dead run to
+    the number that had been typed. An override differs from its default in exactly the
+    cell that was edited.
+    '''
+
+    call('project.open', example='pv_e')
+    call('cell.edit', table='Financial Input Values', row='Plant life',
+         column='Value', text='25')
+
+    written = call('project.source')['markdown']
+    assert holds_row(written, 'Plant life', '25', 'year')
+
+
+def test_overriding_a_default_with_the_same_value_changes_no_number():
+    '''The sharpest form of the contract: writing a default back as an override is a
+    no-op the engine cannot detect. If the padding invents anything — a unit, a blank
+    where a value was — the cost moves, and this is the test that says so.
+    '''
+
+    before = call('project.open', example='pv_e')['project']['cost']['value']
+    call('cell.edit', table='Financial Input Values', row='Plant life',
+         column='Value', text='20')
+    after = call('project.state')['project']['cost']['value']
+
+    assert after == before == pytest.approx(4.194302976489664)
+
+
+def test_editing_the_unit_of_a_default_keeps_its_value():
+    '''The same padding bug in the other direction. A fresh override table was built
+    holding only the column being edited, so touching the unit wrote `Plant life | year`
+    — a row whose value had vanished entirely.
+    '''
+
+    call('project.open', example='pv_e')
+    call('cell.edit', table='Financial Input Values', row='Plant life',
+         column='Unit', text='year')
+
+    written = call('project.source')['markdown']
+    assert holds_row(written, 'Plant life', '20', 'year')
+
+
 def test_a_step_that_runs_after_its_reader_is_reported_as_inert():
     '''Position is the whole difference between a live step and a decorative one.
 

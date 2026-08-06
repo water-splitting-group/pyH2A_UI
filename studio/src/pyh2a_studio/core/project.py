@@ -268,7 +268,10 @@ class Project:
                    else text)
         merged_table = (self.inp or {}).get(table)
         if create or (merged_table is not None and row in merged_table):
-            grammar.ensure_cell(document, table, row, column, written, steps)
+            # The merged row, so an override inherits the default's other cells instead
+            # of having them invented from the plugin's declared dimension.
+            grammar.ensure_cell(document, table, row, column, written,
+                                plugins=steps, inherit=(merged_table or {}).get(row))
         elif table in document:
             grammar.set_cell(document, table, row, column, written)
         elif merged_table is not None:

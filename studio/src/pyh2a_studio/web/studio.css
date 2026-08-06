@@ -887,11 +887,23 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
   justify-content: center;
   z-index: 20;
 }
-.chooser-panel.wide { min-width: 760px; max-width: 860px; max-height: 76vh; overflow-y: auto; }
+/* Wide enough for the column that decides the question. Every row offers a plugin and
+ * three of the values it would write; those paths are the reason to pick one, and the
+ * panel was narrow enough that they arrived as "…ble Capital Costs › Land required". */
+.chooser-panel.wide {
+  min-width: 760px;
+  width: min(1040px, 92vw);
+  max-width: 1040px;
+  max-height: 76vh;
+  overflow-y: auto;
+}
 .panel-sub { font-size: 12.5px; color: var(--ash); margin: 4px 0 0; }
 .plugin-row {
   display: grid;
-  grid-template-columns: 1fr 128px 74px;
+  /* `tail(entry, 34)` budgets 34 characters and the track held 128px, which is 21 of
+   * them at 10px mono — so the renderer trimmed the head off a path and the column
+   * trimmed it again. The track is now sized to the budget the renderer was written to. */
+  grid-template-columns: 1fr 216px 74px;
   align-items: baseline;
   gap: var(--sp-3);
   padding: 8px 0;
@@ -1688,3 +1700,7 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
   .welcome-panel { padding: var(--sp-4) var(--sp-3); }
   .doors { grid-template-columns: 1fr; }
 }
+
+/* The one control the browser was still drawing itself. A palette with no blue in it
+   had a system-blue checkbox on the first screen anybody sees. */
+input[type="checkbox"] { accent-color: var(--ink); }

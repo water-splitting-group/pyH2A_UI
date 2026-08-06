@@ -284,7 +284,8 @@ def set_cell(document, table_name, row_name, column_name, raw_text):
     row[column_name] = raw_text
 
 
-def ensure_cell(document, table_name, row_name, column_name, raw_text, plugins=None):
+def ensure_cell(document, table_name, row_name, column_name, raw_text, *,
+                plugins=None, inherit=None):
     '''Set one cell, creating the table/row/column if absent (a defaults override).
 
     A new row is padded to the width of the table it joins. The docstring here used to
@@ -307,11 +308,39 @@ def ensure_cell(document, table_name, row_name, column_name, raw_text, plugins=N
     back to ``-``, pyH2A's dimensionless token, when nothing claims it. Writing the
     declared unit is what turns "add a step and fill it in" into a pipeline that runs:
     with a bare ``-`` the engine correctly refused every dimensional field in turn.
+
+    That declared unit is right for a row nothing holds yet, and wrong for a row the
+    merged defaults already carry. ``Plant life`` lives in ``Defaults_TEA.md`` at
+    ``20 | year`` and the file has no ``Financial Input Values`` table, so typing 25
+    into it creates an override row — and the padding filled the untouched ``Unit``
+    from the plugin's dimension, which is the SI base ``s``. The file came back reading
+    ``Plant life | 25 | s``, the run died in the Electrolyzer, and nothing on screen
+    connected a 25-second plant to the number the user had typed. The same padding
+    blanked the ``Value`` of any defaults-backed row whose unit was edited.
+
+    So ``inherit`` — the merged input's own row, when it has one — is consulted first
+    for every column this call is not writing. An override then differs from the
+    default in exactly the cell that was edited, which is what an override means.
+
+    Parameters
+    ----------
+    inherit : dict, optional
+        The merged input's existing row, as ``{column: value}``. Untouched columns are
+        seeded from here before falling back to the plugin's declared unit.
     '''
+
+    units = engine.declared_units(table_name, row_name, plugins)
+    held = {column: value for column, value in (inherit or {}).items()
+            if value is not None and str(value) != ''}
 
     fresh = table_name not in document
     if fresh:
-        document[table_name] = Table(name=table_name, columns=['Name'])
+        # A table invented to override a default carries the default's own columns, in
+        # the default's own order, or the override is a different row. Editing the Unit
+        # of `Plant life` built `Financial Input Values` with nothing but a `Unit`
+        # column and wrote `Plant life | year` — a row whose value had vanished.
+        columns = ['Name'] + [column for column in held if column != 'Name']
+        document[table_name] = Table(name=table_name, columns=columns)
     table = document[table_name]
 
     if column_name not in table.columns[1:]:
@@ -333,7 +362,6 @@ def ensure_cell(document, table_name, row_name, column_name, raw_text, plugins=N
     # gets None. Creating `Reverse Osmosis` and filling all three of its fields produced
     # a file that died on `NoneType has no attribute strip` — the same shape as the short
     # row above, one level up.
-    units = engine.declared_units(table_name, row_name, plugins)
     if 'Unit' in units and 'Unit' not in table.columns:
         table.columns.append('Unit')
 
@@ -343,7 +371,12 @@ def ensure_cell(document, table_name, row_name, column_name, raw_text, plugins=N
     row = table.rows[row_name]
     row[column_name] = raw_text
     for column in table.columns[1:]:
-        row.setdefault(column, units.get(column, ''))
+        # The merged default first, the plugin's declared unit second: an override that
+        # invents a unit the default did not have is a different number, silently.
+        if column in held:
+            row.setdefault(column, str(held[column]))
+        else:
+            row.setdefault(column, units.get(column, ''))
 
 
 def engine_dict(markdown_text):
