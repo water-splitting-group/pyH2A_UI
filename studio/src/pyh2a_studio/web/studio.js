@@ -1586,7 +1586,7 @@ async function showPlugins(position) {
           : '<span class="nodesc">no description in the plugin</span>'}</p>
       </div>
       <div class="makes">${plugin.makes.slice(0, 3).map((entry) =>
-        `<span title="${escape(entry)}">${escape(tail(entry, 34))}</span>`).join('<br>')}${
+        `<span title="${escape(entry)}">${escape(tail(entry, 46))}</span>`).join('<br>')}${
         plugin.makes_count > 3 ? `<br>+${plugin.makes_count - 3} more` : ''}</div>
       <div class="fit ${plugin.satisfied ? '' : 'none'}">${plugin.in_use ? 'in use'
         : `<b>${plugin.satisfied}</b> of ${plugin.needs} ready<br>${ready}%`}</div>
