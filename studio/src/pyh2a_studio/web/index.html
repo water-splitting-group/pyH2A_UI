@@ -2,9 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Without this a phone lays the page out at 980 px and scales it down, so the whole
+     worksheet arrives as a legible-in-principle postage stamp. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
 <title>Paper Plant Studio</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="studio.css">
+<link rel="stylesheet" href="figures.css">
 </head>
 <body>
 
@@ -41,6 +46,20 @@
   <button id="firstedits-close" type="button" title="dismiss">×</button>
 </div>
 
+<!-- On a narrow screen the three columns collapse to one and the outer two become
+     drawers. These two buttons are the only way back to them, so they are not decoration:
+     they carry the same counts the panels head themselves with. -->
+<div id="panelbar" hidden>
+  <button id="show-rail" type="button" aria-expanded="false" aria-controls="rail">
+    <span class="kicker">workflow</span><span id="panelbar-steps"></span>
+  </button>
+  <span class="panelbar-here" id="panelbar-here"></span>
+  <button id="show-scope" type="button" aria-expanded="false" aria-controls="scope">
+    <span class="kicker">available</span><span id="panelbar-scope"></span>
+  </button>
+</div>
+<div id="scrim" hidden></div>
+
 <main id="sheet">
   <nav id="rail" aria-label="workflow">
     <div class="rail-head">
@@ -52,10 +71,10 @@
       <ol id="rail-list"></ol>
     </div>
     <div class="rail-foot">
-      <div id="rail-flow" class="rail-flow"></div>
       <div id="rail-legend"></div>
     </div>
   </nav>
+  <div id="rail-card" class="rail-card" hidden aria-hidden="true"></div>
 
   <section id="needs" aria-label="what this step needs"></section>
 
@@ -167,6 +186,19 @@
     <span class="kicker">add a step</span>
     <p class="panel-sub" id="plugins-sub"></p>
     <ul id="plugins-list"></ul>
+  </div>
+</div>
+
+<div id="figures" class="overlay" hidden>
+  <div class="fig-panel" role="dialog" aria-modal="true" aria-labelledby="fig-title" tabindex="-1">
+    <div class="fig-head">
+      <span class="kicker" id="fig-kicker"></span>
+      <h2 id="fig-title"></h2>
+      <span class="fill"></span>
+      <div id="fig-tabs" class="fig-tabs"></div>
+      <button id="fig-close" type="button">close</button>
+    </div>
+    <div id="fig-stage" class="fig-stage"></div>
   </div>
 </div>
 

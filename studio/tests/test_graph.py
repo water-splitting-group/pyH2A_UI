@@ -243,7 +243,9 @@ def test_a_position_is_written_without_a_pointless_decimal():
 
     call('project.open', example='pv_e')
     call('workflow.add', plugin='Solar_Concentrator_Plugin', position=250.0)
-    assert 'Solar_Concentrator_Plugin | 250\n' in call('project.source')['markdown']
+    assert any(row.split('|')[1].strip() == '250'
+               for row in call('project.source')['markdown'].splitlines()
+               if row.startswith('Solar_Concentrator_Plugin '))
 
 
 # ---------------------------------------------------------------- catalogue

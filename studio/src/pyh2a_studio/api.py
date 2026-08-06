@@ -638,6 +638,45 @@ def op_figures(payload):
     return {'figures': figures.for_step(opened, name)}
 
 
+FIGURE_TITLES = {
+    'contributions': ('cost', 'Where the money goes',
+                      'every component of the levelized cost, accumulating'),
+    'annual_costs': ('cash flow', 'When the plant pays for itself',
+                     'the years of cash in and out, and the payback crossing'),
+    'hourly': ('dispatch', 'The year, hour by hour',
+               '8,760 cells — one per operating hour, ink is magnitude'),
+}
+'''Kicker, title and blurb per figure kind. One copy, because the same strings caption
+the figure, label its tab and describe it on the step panel's door.'''
+
+
+def op_figures_catalogue(payload):
+    '''Every figure this project can draw, and which step owns it.
+
+    The rail needs this to badge the steps worth visiting, and a reader needs it because
+    a figure hanging off one step out of seventeen is a figure nobody finds: the hourly
+    dispatch calendar lives on `Photovoltaic_Plugin`, and until this existed you met it
+    by opening step 202 and scrolling.
+
+    Built by asking `figures.for_step` which kinds each step offers, rather than by a
+    second rule about which steps have figures — two rules disagree eventually, and the
+    badge would then point at a figure that is not there. It costs 0.2 ms across all
+    seventeen steps of PV + Electrolysis, because `for_step` decides on array *lengths*
+    and does not build the 8,760-point series until one is opened.
+    '''
+
+    opened = _session(payload)
+    found = []
+    for name in opened.order():
+        for kind in figures.for_step(opened, name):
+            if kind not in FIGURE_TITLES:
+                continue
+            kicker, title, blurb = FIGURE_TITLES[kind]
+            found.append({'kind': kind, 'step': name, 'kicker': kicker,
+                          'title': title, 'blurb': blurb})
+    return {'catalogue': found}
+
+
 def op_step_effect(payload):
     '''Whether this step changes the answer, measured by removing it and re-running.
 
@@ -791,6 +830,7 @@ OPS = {
     'workflow.move': op_workflow_move,
     'workflow.remove': op_workflow_remove,
     'figures': op_figures,
+    'figures.catalogue': op_figures_catalogue,
     'step.effect': op_step_effect,
     'series': op_series,
 }

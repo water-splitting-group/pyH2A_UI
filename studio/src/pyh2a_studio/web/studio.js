@@ -215,6 +215,7 @@ function renderRail() {
 
   drawEdges(nodes);
   renderLegend(nodes);
+  renderPanelBar();
 }
 
 function stepNode(entry, index) {
@@ -231,14 +232,27 @@ function stepNode(entry, index) {
   // One tab stop for the whole rail; arrows walk it. Interleaved insertion points and
   // steps made 35 stops, and reaching the last step took 33 presses of Tab.
   item.tabIndex = entry.name === state.step ? 0 : -1;
+  // A step that can draw something says so. Five of PV + Electrolysis's seventeen steps
+  // can, and until this badge existed you found them by opening steps at random.
+  const draws = (state.catalogue || []).filter((figure) => figure.step === entry.name);
   item.innerHTML = `
     <span class="pos">${entry.position}</span>
     <span class="dot"></span>
     <span class="name">${escape(entry.label)}</span>
+    ${draws.length ? `<button class="figmark" data-figure-step="${escape(entry.name)}"
+        title="${escape(draws.map((figure) => figure.title).join(' · '))}"
+        aria-label="${escape(`open ${plural(draws.length, 'figure')} for ${entry.label}`)}"
+      >${draws.length > 1 ? draws.length : ''}<svg viewBox="0 0 12 12" aria-hidden="true"
+        ><path d="M1 9.5 L4 5 L6.5 7 L11 1.5" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}
     ${entry.problems
       ? `<span class="badge ${entry.status === 'error' ? 'severe' : ''}">${entry.problems}</span>`
       : entry.status === 'error' ? '<span class="badge severe">!</span>' : ''}`;
-  item.onclick = () => openStep(entry.name);
+  const figmark = item.querySelector('.figmark');
+  if (figmark) {
+    figmark.onclick = (event) => { event.stopPropagation(); openFigures(entry.name); };
+  }
+  item.onclick = () => { openStep(entry.name); closePanels(); };
   item.onkeydown = (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -330,18 +344,62 @@ function famOfStep(name) {
   return node ? node.family : 'scale';
 }
 
+/*
+ * Light a step's edges, and name the values crossing them.
+ *
+ * The client's own words about this app: *"the nodes are completely trivial. The
+ * interesting thing is the edges, which are the individual pieces of information that
+ * are passed between them."* The rail drew the edges from the first build and then said
+ * only how many values each carried — `12 values in from 4 steps` — which is a fact
+ * about the graph, not about the plant. The names were in `edge.cells` all along.
+ *
+ * Everything is listed, never truncated: the busiest step in any shipped pathway takes
+ * twelve values (Discounted Cash Flow on PV + Electrolysis) and the widest single edge
+ * carries five. A "+3 more" on a list that short would be hiding nothing at some cost.
+ */
 function light(name) {
   state.lit = name;
   drawEdges(state.graph ? state.graph.nodes : state.rail);
-  const flow = el('rail-flow');
-  if (!name || !state.graph) { flow.innerHTML = ''; return; }
+
+  const card = el('rail-card');
+  if (!name || !state.graph) { card.hidden = true; return; }
+
   const inbound = state.graph.edges.filter((edge) => edge.to === name);
   const outbound = state.graph.edges.filter((edge) => edge.from === name);
-  flow.innerHTML = `
-    <b>${inbound.reduce((total, edge) => total + edge.count, 0)}</b> values in from
-    ${inbound.length} step${inbound.length === 1 ? '' : 's'}<br>
-    <b>${outbound.reduce((total, edge) => total + edge.count, 0)}</b> values out to
-    ${outbound.length} step${outbound.length === 1 ? '' : 's'}`;
+  if (!inbound.length && !outbound.length) { card.hidden = true; return; }
+
+  const node = state.graph.nodes.find((entry) => entry.name === name);
+  const side = (edges, peerOf, heading, preposition) => {
+    if (!edges.length) return '';
+    const total = edges.reduce((sum, edge) => sum + edge.count, 0);
+    return `
+      <div class="flow-side">
+        <div class="flow-head">${plural(total, 'value')} ${heading}</div>
+        ${edges.map((edge) => {
+          const peer = state.graph.nodes.find((entry) => entry.name === peerOf(edge));
+          return `<div class="flow-peer" style="--fam: var(--fam-${peer ? peer.family : 'framework'})">
+            <div class="flow-who">${preposition} <b>${escape(peer ? peer.label : peerOf(edge))}</b>
+              <span class="flow-pos">${peer ? peer.position : ''}</span></div>
+            ${edge.cells.map((cell) => `<div class="flow-cell">${escape(cell)}</div>`).join('')}
+          </div>`;
+        }).join('')}
+      </div>`;
+  };
+
+  card.innerHTML = `
+    <div class="flow-title">${escape(node ? node.label : name)}</div>
+    ${side(inbound, (edge) => edge.from, 'in', 'from')}
+    ${side(outbound, (edge) => edge.to, 'out', 'to')}`;
+  card.hidden = false;
+
+  // Anchored to the step, clamped to the viewport. A card that runs off the bottom on
+  // step 900 is worse than one that sits a little high.
+  const anchor = el('rail-list')
+    .querySelector(`[data-name="${String(name).replace(/["\\]/g, '\\$&')}"]`);
+  if (!anchor) return;
+  const box = anchor.getBoundingClientRect();
+  const height = card.offsetHeight;
+  card.style.top = `${Math.max(52, Math.min(box.top - 4, window.innerHeight - height - 12))}px`;
 }
 
 /*
@@ -417,6 +475,7 @@ function renderNeeds() {
     ${renderFigures()}`;
 
   wireNeeds();
+  renderPanelBar();
   coach(state.teaches);
 }
 
@@ -755,15 +814,26 @@ function renderProblem(problem) {
  * is an argument about it. A reader who wants the number should not have to scroll
  * past a picture to reach it.
  */
+/*
+ * In the step panel, a figure is a door rather than a drawing.
+ *
+ * These used to render inline in a column about 560 px wide. The dispatch calendar is
+ * 365 columns of one-hour cells; the cash flow is 21 stacked years under a cumulative
+ * line. Both were being asked to be instruments in the space of a sidebar illustration,
+ * and both now open full width instead.
+ */
 function renderFigures() {
-  const found = state.figures;
-  if (!found) return '';
+  const offered = (state.catalogue || []).filter((figure) => figure.step === state.step);
+  if (!offered.length) return '';
 
-  const parts = [];
-  if (found.contributions) parts.push(decomposition(found.contributions));
-  if (found.annual_costs) parts.push(annual(found.annual_costs));
-  if (found.hourly && found.hourly.length) parts.push(renderHourly(found.hourly));
-  return parts.join('');
+  return `<div class="fig-doors">
+    ${offered.map((figure) => `
+      <button class="fig-door" data-open-figure="${figure.kind}">
+        <span class="kicker">${escape(figure.kicker)}</span>
+        <span class="fig-door-title">${escape(figure.title)}</span>
+        <span class="fig-door-blurb">${escape(figure.blurb)}</span>
+      </button>`).join('')}
+  </div>`;
 }
 
 function renderHourly(candidates) {
@@ -1078,15 +1148,8 @@ function wireNeeds() {
     button.onclick = () => removeStep(button.dataset.remove);
   });
 
-  host.querySelectorAll('[data-series]').forEach((button) => {
-    button.onclick = () => {
-      const entry = state.figures.hourly[Number(button.dataset.series)];
-      loadSeries(entry, 0);
-    };
-  });
-
-  host.querySelectorAll('[data-year]').forEach((button) => {
-    button.onclick = () => loadSeries(state.series, Number(button.dataset.year));
+  host.querySelectorAll('[data-open-figure]').forEach((button) => {
+    button.onclick = () => openFigures(state.step, button.dataset.openFigure);
   });
 
   host.querySelectorAll('[data-add-plugin]').forEach((button) => {
@@ -1114,12 +1177,18 @@ function wireNeeds() {
 }
 
 async function loadSeries(entry, year) {
+  if (!entry) return;
   const result = await call('series', {
-    step: state.step, table: entry.table, row: entry.row, column: entry.column, year,
+    step: figureState.step || state.step,
+    table: entry.table, row: entry.row, column: entry.column, year,
   });
   if (!result) return;
   state.series = { ...result.series, table: entry.table, row: entry.row };
-  renderNeeds();
+  // Whichever surface is showing the calendar is the one to repaint. Repainting the
+  // step panel while the modal is up left the picker looking dead: the click registered,
+  // the fetch ran, and the figure the reader was looking at never changed.
+  if (!el('figures').hidden) paintFigure();
+  else renderNeeds();
 }
 
 /*
@@ -1227,7 +1296,7 @@ async function commit(table, row, column, text, create = false) {
     toast('that is the shape of it — the rest is the same move, anywhere on any step');
   }
   renderFirstEdits();
-  await loadGraph();
+  await Promise.all([loadGraph(), loadCatalogue()]);
   const drawn = await call('figures', { step: state.step });
   state.figures = drawn ? drawn.figures : null;
 
@@ -1303,6 +1372,13 @@ async function openStep(name) {
   }
 }
 
+/* Refreshed alongside the graph: adding or removing a step changes which steps can
+ * draw, and a stale badge sends the reader to a figure that is no longer there. */
+async function loadCatalogue() {
+  const result = await call('figures.catalogue');
+  state.catalogue = result ? result.catalogue : [];
+}
+
 async function loadGraph() {
   const result = await call('graph');
   if (result) state.graph = result.graph;
@@ -1312,6 +1388,92 @@ async function loadGraph() {
 async function saveDraft() {
   const source = await call('project.source');
   if (source) keepDraft(source.markdown, state.project.name, state.project.origin);
+}
+
+/* ------------------------------------------------------------- the figure stage
+ *
+ * Figures used to render inline in the step panel, in a column about 560 px wide at a
+ * 1440 px window. The dispatch calendar is 365 columns of one-hour cells and the cash
+ * flow is 21 stacked years with a cumulative line over them; both were being asked to
+ * be instruments in the space of a sidebar illustration. They open full width now, and
+ * the rail says which steps have one.
+ */
+let figureState = { step: null, kind: null };
+
+async function openFigures(stepName, kind = null) {
+  const offered = (state.catalogue || []).filter((figure) => figure.step === stepName);
+  if (!offered.length) return;
+
+  figureState = { step: stepName, kind: kind || offered[0].kind };
+  el('figures').hidden = false;
+  el('fig-stage').innerHTML = '<p class="fig-wait">drawing…</p>';
+  renderFigureTabs(offered);
+
+  // The data is fetched per step, not per figure: one call carries every array the step
+  // can draw, and switching tabs after that is instant.
+  const drawn = await call('figures', { step: stepName });
+  if (!drawn || el('figures').hidden) return;
+  figureState.data = drawn.figures;
+  paintFigure();
+  el('figures').querySelector('.fig-panel').focus({ preventScroll: true });
+}
+
+function renderFigureTabs(offered) {
+  const current = offered.find((figure) => figure.kind === figureState.kind) || offered[0];
+  el('fig-kicker').textContent = `${labelFor(figureState.step)} · ${current.kicker}`;
+  el('fig-title').textContent = current.title;
+  el('fig-tabs').innerHTML = offered.length > 1
+    ? offered.map((figure) => `<button class="fig-tab ${figure.kind === figureState.kind
+        ? 'on' : ''}" data-fig-kind="${figure.kind}">${escape(figure.kicker)}</button>`).join('')
+    : '';
+  el('fig-tabs').querySelectorAll('[data-fig-kind]').forEach((button) => {
+    button.onclick = () => {
+      figureState.kind = button.dataset.figKind;
+      renderFigureTabs(offered);
+      paintFigure();
+    };
+  });
+}
+
+/* The calendar's own controls: which cell to draw, and which of its twenty years.
+ * Shared because the same markup is wired from the step panel and from the modal, and
+ * two copies of this drifted apart once already. */
+function wireHourly(host) {
+  host.querySelectorAll('[data-series]').forEach((button) => {
+    button.onclick = () => {
+      const candidates = (figureState.data || state.figures || {}).hourly || [];
+      loadSeries(candidates[Number(button.dataset.series)], 0);
+    };
+  });
+  host.querySelectorAll('[data-year]').forEach((button) => {
+    button.onclick = () => loadSeries(state.series, Number(button.dataset.year));
+  });
+}
+
+function paintFigure() {
+  const stage = el('fig-stage');
+  const data = figureState.data;
+  if (!data) return;
+
+  if (figureState.kind === 'contributions' && data.contributions) {
+    stage.innerHTML = decomposition(data.contributions);
+    return;
+  }
+  if (figureState.kind === 'annual_costs' && data.annual_costs) {
+    stage.innerHTML = annual(data.annual_costs);
+    return;
+  }
+  if (figureState.kind === 'hourly' && data.hourly && data.hourly.length) {
+    stage.innerHTML = renderHourly(data.hourly);
+    wireHourly(stage);
+    return;
+  }
+  stage.innerHTML = '<p class="fig-wait">this step has nothing to draw right now.</p>';
+}
+
+function closeFigures() {
+  el('figures').hidden = true;
+  figureState = { step: null, kind: null };
 }
 
 async function refresh() {
@@ -1324,7 +1486,7 @@ async function refresh() {
   // a stale graph: after moving a step the file, the cost and the server's rail all said
   // 550 while the screen kept showing 650, complete with an insertion point at 625 that
   // no longer existed. Nothing but a full page reload corrected it.
-  await loadGraph();
+  await Promise.all([loadGraph(), loadCatalogue()]);
   renderMasthead();
   renderRail();
 }
@@ -1352,7 +1514,7 @@ async function openProject(choice) {
   state.teaches = result.teaches || [];
   state.collapsed.clear();
   el('chooser').hidden = true;
-  await loadGraph();
+  await Promise.all([loadGraph(), loadCatalogue()]);
   await saveDraft();
   renderMasthead();
   renderRail();
@@ -1570,7 +1732,7 @@ async function applySource() {
 
   el('source-state').classList.remove('bad');
   el('source').hidden = true;
-  await loadGraph();
+  await Promise.all([loadGraph(), loadCatalogue()]);
   renderMasthead();
   renderRail();
   const first = state.rail.find((entry) => entry.status === 'error') || state.rail[0];
@@ -1589,6 +1751,53 @@ function downloadSource() {
   URL.revokeObjectURL(url);
   toast(`downloaded ${name}`);
 }
+
+/* ------------------------------------------------------------- narrow screens
+ *
+ * The drawers are CSS; this is only the state and the ways out. Three of them, because
+ * a panel you can open and not close is a trap on a phone: the scrim, Escape, and
+ * choosing a step (which is what you opened the workflow drawer to do).
+ */
+const PANELS = { rail: 'show-rail', scope: 'show-scope' };
+
+function showPanel(which) {
+  Object.entries(PANELS).forEach(([panel, button]) => {
+    const on = panel === which;
+    document.body.classList.toggle(`${panel}-open`, on);
+    el(button).setAttribute('aria-expanded', String(on));
+  });
+  el('scrim').hidden = !which;
+  if (which) el(which).focus({ preventScroll: true });
+}
+
+function closePanels() { showPanel(null); }
+
+function narrow() { return window.matchMedia('(max-width: 900px)').matches; }
+
+/* The bar is the only route back to the two panels, so it carries what they head
+ * themselves with — otherwise it is two unlabelled doors. */
+function renderPanelBar() {
+  const bar = el('panelbar');
+  bar.hidden = !narrow() || !state.project;
+  if (bar.hidden) return;
+  const nodes = state.graph ? state.graph.nodes : state.rail;
+  el('panelbar-steps').textContent = nodes.length ? String(nodes.length) : '';
+  el('panelbar-scope').textContent = state.frame && state.frame.scope
+    ? String(state.frame.scope.groups.reduce((total, group) =>
+        total + group.tables.reduce((sum, table) => sum + table.rows.length, 0), 0))
+    : '';
+  el('panelbar-here').textContent = state.step ? labelFor(state.step) : '';
+}
+
+el('show-rail').onclick = () =>
+  showPanel(document.body.classList.contains('rail-open') ? null : 'rail');
+el('show-scope').onclick = () =>
+  showPanel(document.body.classList.contains('scope-open') ? null : 'scope');
+el('scrim').onclick = closePanels;
+window.addEventListener('resize', () => { if (!narrow()) closePanels(); renderPanelBar(); });
+
+el('fig-close').onclick = closeFigures;
+el('figures').onclick = (event) => { if (event.target.id === 'figures') closeFigures(); };
 
 el('source-button').onclick = showSource;
 el('source-apply').onclick = applySource;
@@ -1633,6 +1842,8 @@ document.addEventListener('keydown', (event) => {
     el('chooser').hidden = true;
     el('plugins').hidden = true;
     el('source').hidden = true;
+    closeFigures();
+    closePanels();
   }
   if ((event.key === 'j' || event.key === 'k') && state.rail.length) {
     const index = state.rail.findIndex((entry) => entry.name === state.step);
@@ -1666,7 +1877,7 @@ async function start() {
   if (existing && existing.project && existing.project.steps) {
     state.project = existing.project;
     state.rail = existing.rail;
-    await loadGraph();
+    await Promise.all([loadGraph(), loadCatalogue()]);
     renderMasthead();
     renderRail();
     const first = state.rail.find((entry) => entry.status === 'error')
@@ -1687,7 +1898,7 @@ async function start() {
     if (restored && !restored.refused) {
       state.project = restored.project;
       state.rail = restored.rail;
-      await loadGraph();
+      await Promise.all([loadGraph(), loadCatalogue()]);
       renderMasthead();
       renderRail();
       if (state.rail.length) await openStep(state.rail[0].name);

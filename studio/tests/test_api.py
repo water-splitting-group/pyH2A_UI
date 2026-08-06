@@ -31,6 +31,23 @@ def call(op, **payload):
     return result
 
 
+def holds_row(markdown, *cells):
+    """True when the file holds a table row with exactly these cells.
+
+    Asserting on raw text (`'Plant modules | 3 |' in markdown`) broke on every one of
+    these the day the serializer started padding columns to align the pipes. That was a
+    formatting change that moved no number, and eight tests failed for it. The cells are
+    the claim; the spacing between them is the serializer's business.
+
+    An empty trailing cell counts, so `holds_row(md, 'Compressor', '250000', '', 'USD')`
+    still asserts the unit landed in the fourth column and nothing landed in the third.
+    """
+
+    wanted = [cell.strip() for cell in cells]
+    return any([cell.strip() for cell in line.split('|')] == wanted
+               for line in markdown.splitlines() if '|' in line)
+
+
 def open_pv_e():
     return call('project.open', example='pv_e')
 
@@ -193,7 +210,10 @@ def test_an_edit_persists_into_the_source():
     open_pv_e()
     call('cell.edit', table='Electrolyzer', row='Nominal power', column='Value',
          text='6000')
-    assert 'Nominal power | 6000' in call('project.source')['markdown']
+    assert holds_row(call('project.source')['markdown'],
+                 'Nominal power', '6000', 'kW',
+                 'Production of ca. 1 t of H2 per day to compare with PEC and '
+                 'photocatalytic models')
 
 
 def test_an_edit_can_return_the_open_step_in_the_same_round_trip():
@@ -244,7 +264,10 @@ def test_editing_can_create_a_cell_when_asked():
     result = call('cell.edit', table='Electrolyzer', row='Stack lifetime',
                   column='Value', text='42', create=True)
     assert result['project']['cost'] is not None
-    assert 'Stack lifetime | 42' in call('project.source')['markdown']
+    assert any(row.strip().startswith('Stack lifetime')
+               and row.split('|')[1].strip() == '42'
+               for row in call('project.source')['markdown'].splitlines()
+               if '|' in row)
 
 
 def test_replacing_the_source_reopens_the_project():
@@ -606,7 +629,7 @@ def test_a_created_row_carries_the_unit_the_plugin_declares():
 
     assert call('step', step='Multiple_Modules_Plugin')['frame']['step']['status'] == 'ok'
     written = call('project.source')['markdown']
-    assert 'Solar collection area | 2 | m2' in written
+    assert holds_row(written, 'Solar collection area', '2', 'm2')
 
 
 def test_the_unit_stays_editable_after_the_value_is_entered():
@@ -742,14 +765,17 @@ def test_a_whole_number_reaches_a_float_only_field():
     after = next(f for group in call('step', step='Reverse_Osmosis_Plugin')['frame']['needs']
                  for f in group['fields'] if f['row'] == 'Power demand')
     assert after['text'] == '4.0'
-    assert 'Power demand | 4.0' in call('project.source')['markdown']
+    assert holds_row(call('project.source')['markdown'],
+                     'Power demand', '4.0', 'J / m3')
 
 
 def test_a_field_that_takes_ints_keeps_the_integer_as_typed():
     call('project.open', example='pv_e')
     call('cell.edit', table='Technical Operating Parameters and Specifications',
          row='Plant modules', column='Value', text='3')
-    assert 'Plant modules | 3 |' in call('project.source')['markdown']
+    assert holds_row(call('project.source')['markdown'], 'Plant modules', '3', '-',
+                 'Modelling of 10 modules for calculation of staff cost to '
+                 'facilitate comparison with PEC and photocatalytic model')
 
 
 def test_a_number_in_a_field_that_cannot_hold_one_is_named_before_the_run():
@@ -833,7 +859,7 @@ def test_the_project_name_you_type_is_written_into_the_file():
     the file, opened it again and got "New pathway".'''
 
     call('project.open', starter='tea_mass', name='Jacob demo')
-    assert 'Name | Jacob demo' in call('project.source')['markdown']
+    assert holds_row(call('project.source')['markdown'], 'Name', 'Jacob demo')
 
     reopened = call('project.open', markdown=call('project.source')['markdown'],
                     origin='downloaded.md')
@@ -884,7 +910,8 @@ def test_a_row_created_in_a_wildcard_declared_table_gets_its_unit():
     state = call('project.state')['project']
     assert state['failed'] is None
     assert state['cost']['value'] > before
-    assert 'Compressor | 250000 |  | USD |' in call('project.source')['markdown']
+    assert holds_row(call('project.source')['markdown'],
+                 'Compressor', '250000', '', 'USD', '')
 
 
 def test_the_spelling_follows_the_workflow_not_the_alphabet():
@@ -900,7 +927,9 @@ def test_the_spelling_follows_the_workflow_not_the_alphabet():
 
     state = call('project.state')['project']
     assert state['failed'] is None
-    assert 'STH | 1.0 |' in call('project.source')['markdown']
+    assert any(row.split('|')[1].strip() == '1.0'
+               for row in call('project.source')['markdown'].splitlines()
+               if row.startswith('STH '))
 
 
 def test_a_dash_on_a_dimensional_cell_is_named_at_the_field():
@@ -948,7 +977,8 @@ def test_editing_a_merged_default_writes_an_override():
     state = call('project.state')['project']
     assert state['failed'] is None
     assert state['cost']['value'] > before
-    assert 'After-tax real IRR | 20%' in call('project.source')['markdown']
+    assert holds_row(call('project.source')['markdown'],
+                 'After-tax real IRR', '20%', '-')
 
 
 def test_a_typo_is_still_refused_when_nothing_holds_that_cell():

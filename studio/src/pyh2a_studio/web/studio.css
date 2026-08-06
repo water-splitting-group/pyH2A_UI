@@ -251,14 +251,6 @@ body:has(#firstedits:not([hidden])) #sheet { height: calc(100vh - 46px - 29px); 
   border-left: 1px solid var(--rule-firm);
 }
 
-.rail-flow {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--graphite);
-  line-height: 1.7;
-  min-height: 34px;
-}
-.rail-flow b { color: var(--ink); }
 
 .rail-foot {
   padding: var(--sp-3) var(--sp-4);
@@ -971,145 +963,11 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
 
 .busy { opacity: 0.55; transition: opacity 120ms var(--ease); }
 
-/* ============================================================ figures
-
-   A figure sits on the dark ground for the same reason the made-panel does: the
-   engine computed it and you cannot type into it. */
-
-.fig {
-  margin-top: var(--sp-4);
-  background: var(--dark);
-  color: var(--dark-ink);
-  padding: var(--sp-4) var(--sp-5) var(--sp-5);
-}
-.fig-head { display: flex; align-items: baseline; gap: var(--sp-3); }
-.fig-head .kicker { color: var(--dark-ash); }
-.fig-head .fill { flex: 1; }
-.fig .note {
-  font-size: 12px;
-  color: var(--dark-ash);
-  line-height: 1.5;
-  margin: var(--sp-3) 0 0;
-  max-width: 74ch;
-}
-.fig .note b { color: var(--dark-ink); font-weight: 500; }
-
-/* --- the decomposition ledger --- */
-table.ledger { width: 100%; border-collapse: collapse; margin-top: var(--sp-3); }
-table.ledger td {
-  padding: 3px 0;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-  vertical-align: baseline;
-}
-table.ledger td.n { font-family: var(--sans); font-size: 12.5px; color: var(--dark-ink); }
-table.ledger td.n small { color: var(--dark-ash); font-family: var(--mono); font-size: 9.5px; }
-table.ledger td.v { text-align: right; padding-right: var(--sp-3); width: 92px; }
-table.ledger td.s { text-align: right; color: var(--dark-ash); width: 62px; padding-right: var(--sp-3); }
-table.ledger tr.fam td { border-top: 1px solid var(--dark-rule); padding-top: 7px; }
-table.ledger tr.fam td.n b { font-weight: 600; }
-table.ledger tr.row td.n { padding-left: var(--sp-4); color: var(--dark-ash); font-size: 12px; }
-table.ledger tr.total td {
-  border-top: 1.5px solid var(--dark-ash);
-  padding-top: 7px;
-  font-size: 15px;
-  color: var(--dark-ink);
-}
-table.ledger tr.total td.n { font-family: var(--serif); font-size: 17px; }
-.ledger .bar {
-  display: block;
-  height: 7px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 1px;
-  min-width: 60px;
-}
-.ledger .bar > span { display: block; height: 100%; border-radius: 1px; }
-
-.audit {
-  margin-top: var(--sp-4);
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-3);
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--dark-ash);
-  border-top: 1px solid var(--dark-rule);
-  padding-top: var(--sp-3);
-}
-.audit .mark { font-size: 19px; color: var(--dark-ink); line-height: 1; }
-.audit.bad { color: var(--strontium); }
-
-/* --- annual costs --- */
-svg.annual { width: 100%; height: 190px; display: block; margin-top: var(--sp-3); }
-.fig .legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--dark-ash);
-  margin-top: var(--sp-2);
-}
-.fig .legend i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 1px; }
-.fig .legend b { color: var(--dark-ink); font-weight: 500; margin-left: 3px; }
-.fig .legend .zeroed { font-style: italic; opacity: 0.7; }
-
-/* --- the calendar --- */
-.cal-picks { display: flex; gap: 5px; flex-wrap: wrap; margin-top: var(--sp-2); }
-.cal-fig .fig-head .cal-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62%; }
-.fig-head { flex-wrap: nowrap; }
-.cal-pick {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  min-height: 22px;
-  background: transparent;
-  border: 1px solid var(--dark-rule);
-  color: var(--dark-ash);
-  border-radius: 2px;
-  padding: 1px 6px;
-  cursor: pointer;
-}
-.cal-pick:hover { color: var(--dark-ink); border-color: var(--dark-ash); }
-.cal-pick.on { background: var(--dark-ink); color: var(--dark); border-color: var(--dark-ink); }
-.cal { display: flex; gap: 6px; margin-top: var(--sp-3); align-items: stretch; }
-.cal-hours {
-  position: relative;
-  font-family: var(--mono);
-  font-size: 8.5px;
-  color: var(--dark-ash);
-  width: 20px;
-  text-align: right;
-  flex: none;
-}
-.cal-hours span { position: absolute; right: 0; transform: translateY(-3px); }
-svg.cal-grid { flex: 1; height: 300px; color: var(--copper); background: rgba(255,255,255,0.03); }
-.cal-key {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  margin: 6px 0 0 26px;
-}
-.cal-key .fill { flex: 1; }
-.cal-key .kicker { color: var(--dark-ash); }
-.cal-key .ramp {
-  width: 96px;
-  height: 9px;
-  border-radius: 1px;
-  background: linear-gradient(to right,
-    color-mix(in srgb, var(--copper) 22%, transparent),
-    var(--copper));
-}
-.cal-months {
-  position: relative;
-  height: 13px;
-  margin: 3px 0 0 26px;
-  font-family: var(--mono);
-  font-size: 8.5px;
-  color: var(--dark-ash);
-}
-.cal-months span { position: absolute; }
-.fig-hourly .fig { margin-top: 0; padding: 0; }
+/* The figures own their own stylesheet: `figures.css`, linked after this one.
+   They used to sit on the dark ground here, on the same reasoning as the computed
+   panel — the engine made them and you cannot type into them. The prototypes they
+   were rebuilt from put the dark inside the plate as a band rather than under the
+   whole thing, which is also what keeps the app to its two dark surfaces. */
 
 /* ============================================================ source drawer */
 
@@ -1259,21 +1117,6 @@ svg.cal-grid { flex: 1; height: 300px; color: var(--copper); background: rgba(25
 }
 
 /* --- year picker on the calendar --- */
-.cal-years { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; margin-top: var(--sp-3); }
-.cal-years .kicker { color: var(--dark-ash); margin-right: 4px; }
-.cal-year {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  background: transparent;
-  border: 1px solid var(--dark-rule);
-  color: var(--dark-ash);
-  border-radius: 2px;
-  padding: 0 5px;
-  cursor: pointer;
-}
-.cal-year:hover { color: var(--dark-ink); border-color: var(--dark-ash); }
-.cal-year.on { background: var(--dark-ink); color: var(--dark); border-color: var(--dark-ink); }
-.cal-pick .yrs { color: var(--sodium); margin-left: 4px; font-size: 8.5px; }
 
 /* ============================================================ the front door
 
@@ -1433,7 +1276,7 @@ svg.cal-grid { flex: 1; height: 300px; color: var(--copper); background: rgba(25
 }
 #tour-bubble {
   position: absolute;
-  width: 330px;
+  width: 366px;
   background: var(--paper);
   border: 1px solid var(--ink);
   box-shadow: 0 14px 44px rgba(0, 0, 0, 0.3);
@@ -1533,3 +1376,235 @@ svg.cal-grid { flex: 1; height: 300px; color: var(--copper); background: rgba(25
 
 /* The bubble's own controls stay clickable inside a veil that now blocks everything. */
 #tour-bubble { pointer-events: auto; }
+
+/* ============================================================ the flow card
+ * "The nodes are completely trivial. The interesting thing is the edges, which are the
+ * individual pieces of information that are passed between them." — the client, on an
+ * earlier build. The rail drew the edges and then described them only as counts.
+ */
+.rail-card {
+  position: fixed;
+  left: 300px;
+  z-index: 30;
+  width: 366px;
+  max-height: 78vh;
+  overflow-y: auto;
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) 14px;
+  background: var(--bench);
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  box-shadow: 0 6px 22px rgba(38, 37, 31, 0.13);
+  /* The card follows the pointer down the rail; it must never be a target itself, or
+     moving toward it from the step exits the step and closes it. */
+  pointer-events: none;
+}
+.rail-card[hidden] { display: none; }
+.flow-title {
+  font-family: var(--serif);
+  font-size: 15px;
+  margin-bottom: var(--sp-2);
+}
+.flow-side + .flow-side { margin-top: var(--sp-3); padding-top: var(--sp-3);
+  border-top: 1px solid var(--rule); }
+.flow-head {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash);
+  margin-bottom: 5px;
+}
+.flow-peer { margin: 6px 0 0; padding-left: 8px; border-left: 2px solid var(--fam); }
+.flow-who { font-size: 12px; color: var(--graphite); }
+.flow-who b { font-weight: 600; color: var(--ink); }
+.flow-pos { font-family: var(--mono); font-size: 10px; color: var(--ash); }
+.flow-cell {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--graphite);
+  /* Wrapped, not clipped. These are `Table › Row` pairs sharing long prefixes, so an
+     ellipsis at the end eats the only part that differs: three requirements all read
+     `Depreciable Capital Costs › Inflation corr…`. A second line is cheaper. */
+  text-indent: -8px;
+  padding-left: 8px;
+}
+
+/* ============================================================ figures
+ * A step that can draw something says so, and the drawing opens full width.
+ */
+.figmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 1px 4px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--graphite);
+  background: none;
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.figmark svg { width: 11px; height: 11px; }
+.figmark:hover { border-color: var(--act); color: var(--act); background: var(--paper); }
+.step[aria-current="true"] .figmark { border-color: var(--rule-firm); }
+
+.fig-doors { display: grid; gap: 1px; margin: var(--sp-4) 0 0; background: var(--rule); }
+.fig-door {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--paper-2);
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.fig-door:hover { background: var(--bench); }
+.fig-door-title { font-family: var(--serif); font-size: 15px; color: var(--ink); }
+.fig-door-blurb { font-size: 12px; color: var(--graphite); }
+
+.fig-panel {
+  width: min(1540px, 94vw);
+  height: min(960px, 92vh);
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  background: var(--paper);
+  border-radius: 2px;
+  outline: none;
+}
+.fig-head { display: flex; align-items: baseline; gap: var(--sp-3); }
+.fig-head .fill { flex: 1; }
+.fig-head h2 { font-family: var(--serif); font-size: 21px; font-weight: 400; margin: 0; }
+.fig-head button, .fig-tab {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  background: var(--bench);
+  color: var(--graphite);
+  cursor: pointer;
+}
+.fig-tabs { display: flex; gap: 4px; }
+.fig-tab.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.fig-head button:hover, .fig-tab:hover { border-color: var(--graphite); color: var(--ink); }
+.fig-stage { flex: 1; min-height: 0; margin-top: var(--sp-3); overflow: auto; }
+.fig-wait { font-family: var(--mono); font-size: 12px; color: var(--ash); }
+
+/* ============================================================ narrow screens
+ *
+ * The desktop layout is three columns with fixed roles — where you are, what this step
+ * needs, what it can reach — and that is the right shape when there is room for it. On a
+ * phone there is room for exactly one, so the outer two become drawers over the middle.
+ *
+ * The breakpoint is 900px because below it the middle column drops under its own
+ * `minmax(500px, 1fr)` floor and the grid starts overflowing the viewport rather than
+ * shrinking. Above it, nothing here applies and the desktop layout is untouched.
+ */
+#panelbar[hidden], #scrim[hidden] { display: none; }
+
+@media (max-width: 900px) {
+  #masthead { flex-wrap: wrap; height: auto; padding: 6px var(--sp-3); row-gap: 4px; }
+  #masthead h1 { font-size: 17px; }
+  #masthead .readouts { order: 3; width: 100%; justify-content: space-between; }
+  #masthead .grow { display: none; }
+  .brand .surface, .brand .sep { display: none; }
+
+  #panelbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 5px var(--sp-3);
+    background: var(--paper-2);
+    border-bottom: 1px solid var(--rule-firm);
+    position: sticky;
+    top: 0;
+    z-index: 12;
+  }
+  #panelbar button {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 4px 9px;
+    font: inherit;
+    font-size: 11px;
+    background: var(--bench);
+    border: 1px solid var(--rule-firm);
+    border-radius: 2px;
+    color: var(--graphite);
+    cursor: pointer;
+  }
+  #panelbar button[aria-expanded="true"] { background: var(--ink); border-color: var(--ink); }
+  #panelbar button[aria-expanded="true"] * { color: var(--paper); }
+  .panelbar-here {
+    flex: 1;
+    text-align: center;
+    font-family: var(--serif);
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #sheet { display: block; height: auto; overflow: visible; }
+  #sheet > * { overflow: visible; }
+  body:has(#firstedits:not([hidden])) #sheet { height: auto; }
+
+  /* Off-canvas, and `visibility` rather than `display` so the panels keep their
+     scroll position and the rail's SVG edges keep their measured geometry — laying
+     them out from scratch on every open made the edges jump. */
+  #rail, #scope {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: min(86vw, 340px);
+    z-index: 20;
+    background: var(--paper-2);
+    overflow-y: auto;
+    transition: transform 200ms var(--ease), visibility 200ms;
+    visibility: hidden;
+  }
+  #rail { left: 0; transform: translateX(-100%); border-right: 1px solid var(--rule-firm); }
+  #scope { right: 0; transform: translateX(100%); border-left: 1px solid var(--rule-firm); }
+  body.rail-open #rail, body.scope-open #scope { transform: none; visibility: visible; }
+
+  #scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    background: rgba(38, 37, 31, 0.34);
+  }
+
+  #needs { padding-bottom: 30vh; }
+
+  /* The field row is `22px 1fr 140px minmax(76px, max-content)`. At 390px that is about
+     260px of fixed track for a 390px screen, so the label got roughly 90px and wrapped
+     one character at a time down the left of its own input — "C / spent in 1st / year of
+     / construction". Stacked instead: name on its own line, value and unit under it. */
+  .field { grid-template-columns: 22px 1fr auto; row-gap: 5px; }
+  .field > .label { grid-column: 2 / -1; }
+  .field > input.cell, .field > .value-cell { grid-column: 2; }
+  .field > input.unit, .field > .label + .idx { grid-column: 3; }
+  .field > .desc, .field > .meta, .field > .problem { grid-column: 2 / -1; }
+  .field.eqn { grid-template-columns: 22px 1fr; }
+  .field.eqn > * { grid-column: 2; }
+
+  /* Inputs below 16px make iOS Safari zoom the page on focus and never zoom back. */
+  input.cell, input.unit, #source-text, #find { font-size: 16px; }
+
+  /* Hover does not exist here, and the card is anchored to a rail that is off-canvas. */
+  .rail-card { display: none !important; }
+
+  .fig-panel { width: 100vw; height: 100vh; padding: var(--sp-3); border-radius: 0; }
+  .fig-head { flex-wrap: wrap; row-gap: 4px; }
+  .source-panel { width: 100vw; height: 100vh; min-width: 0; padding: var(--sp-3); }
+  .welcome-panel { padding: var(--sp-4) var(--sp-3); }
+  .doors { grid-template-columns: 1fr; }
+}
