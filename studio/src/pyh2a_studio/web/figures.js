@@ -144,6 +144,37 @@ const FAMILY_INK = {
   other: 'var(--strontium)',
 };
 
+/*
+ * What a figure calls itself.
+ *
+ * The modal used to print its own kicker and title from the catalogue — generic strings
+ * chosen before the run — and then each plate printed a second pair underneath, built
+ * from the run itself. You read "Where the money goes" and, two lines below it, "Where
+ * the kWh price comes from", which is the same sentence with the answer in it.
+ *
+ * The plate's version wins, because only the renderer knows the tributary count, the
+ * analysis span, or whether the plant pays back at all. It is handed up to the modal
+ * instead of drawn twice: one title, in the sticky head, where it survives scrolling.
+ */
+export function decompositionHead(data) {
+  const denominator = data && data.functional_unit;
+  const unit = (data && data.unit) || '';
+  return {
+    kicker: `cost cascade · ${data.tributaries.length} tributaries`
+      + ` · discounted, per ${denominator}`,
+    title: `Where the ${unit.split('/')[1] || denominator} price comes from`,
+  };
+}
+
+export function annualHead(data) {
+  const span = data.span;
+  return {
+    kicker: `discounted cash flow · ${span} analysis years, nominal`,
+    title: data.payback ? 'When the plant pays for itself'
+      : 'Where the money goes, year by year',
+  };
+}
+
 export function decomposition(data) {
   if (!data || !data.tributaries || !data.tributaries.length) return '';
 
@@ -185,11 +216,6 @@ export function decomposition(data) {
 
   return `<section class="dc">
     <header class="dc-head">
-      <div>
-        <span class="kicker">cost cascade \u00B7 ${data.tributaries.length} tributaries
-          \u00B7 discounted, per ${escape(denominator)}</span>
-        <h3>Where the ${escape(unit.split('/')[1] || denominator)} price comes from</h3>
-      </div>
       <p class="dc-lede">Each stream enters at the part of the plant that incurs it and
         runs to the gate. The bar's length is the stream; where it starts is everything
         bought before it. ${data.rows.length} engine components, regrouped into
@@ -201,9 +227,11 @@ export function decomposition(data) {
       <span class="dc-name kicker">stream</span>
       <span class="dc-val kicker">${escape(unit)}</span>
       <span class="dc-share kicker">share</span>
-      <span class="dc-lane">${upTicks(ceiling).map((tick) => `<i class="dc-tick"
+      <span class="dc-lane">${upTicks(ceiling).map((tick) => `<i class="dc-tick${
+    tick / ceiling > 0.84 ? ' dc-tick-end' : ''}"
         style="left:${at(tick)}"><span>${sig(tick)}</span></i>`).join('')}
-        <i class="dc-tick dc-tick-total" style="left:${at(data.total)}"
+        <i class="dc-tick dc-tick-total${data.total / ceiling > 0.84 ? ' dc-tick-end' : ''}"
+          style="left:${at(data.total)}"
           ><span>total ${cost(data.total)}</span></i></span>
     </div>
 
@@ -267,8 +295,16 @@ function familyBand(family, parts, next, at, unit) {
   const low = Math.min(...parts.map((part) => Math.min(part.start, part.end)), 0);
   const high = Math.max(...parts.map((part) => Math.max(part.start, part.end)), 0);
 
-  return `<div class="dc-band" style="--fam:${ink}">
-    <div class="dc-row dc-fam">
+  // A family whose one stream carries the family's own name states itself twice: on
+  // `pv_e_lcoe` the plate read "Operating · spent every year the plant runs · 0.00313"
+  // and then, on the next line, "05 · Operating · spent every year the plant runs ·
+  // 0.00313". Three of the four families did it. The subtotal row adds nothing a reader
+  // cannot see in the single stream under it, so it is dropped — the family chip moves
+  // down so the colour still says which family this is.
+  const echo = parts.length === 1 && parts[0].label === family.label;
+
+  return `<div class="dc-band${echo ? ' dc-band-one' : ''}" style="--fam:${ink}">
+    ${echo ? '' : `<div class="dc-row dc-fam">
       <span class="dc-reg"><i class="dc-chip"></i></span>
       <span class="dc-name"><b>${escape(family.label)}</b>
         <em>${escape(family.blurb || '')}</em></span>
@@ -277,7 +313,7 @@ function familyBand(family, parts, next, at, unit) {
       <span class="dc-lane"><i class="dc-dim" style="left:${at(low)};width:${
     at(Math.max(high - low, 0))}"><span>${sig(family.subtotal)} ${escape(unit)}</span></i>
       </span>
-    </div>
+    </div>`}
     ${parts.map((part) => streamRow(part, next(), at, unit)).join('')}
   </div>`;
 }
@@ -352,7 +388,12 @@ function streamBasis(part, unit) {
  * cursor at full precision.
  */
 
-const PLOT = { width: 1160, height: 600, left: 46, right: 1104, top: 76, bottom: 520 };
+/* Every coordinate in this figure derives from here, so the plot's proportions are set
+ * in one place. It was 1160 × 600, an aspect of 1.93, which at the width the modal gives
+ * it drew 420px tall beside a summary column 548px tall — a 128px hole under the plot,
+ * and bars flattened into a band you could not read a year out of. Taller viewBox, same
+ * width: the drawing gains the height rather than being stretched into it. */
+const PLOT = { width: 1160, height: 700, left: 46, right: 1104, top: 76, bottom: 620 };
 
 export function annual(data) {
   if (!data || !data.lines || !data.lines.length) return '';
@@ -361,7 +402,6 @@ export function annual(data) {
   const span = data.span;
   const years = data.years;
   const unit = data.unit;
-
   const inflow = [];
   const outflow = [];
   for (let index = 0; index < span; index += 1) {
@@ -389,13 +429,9 @@ export function annual(data) {
   return `<section class="cf">
     <header class="cf-head">
       <div>
-        <span class="kicker">discounted cash flow \u00B7 ${span} analysis years,
-          nominal</span>
-        <h3>${data.payback ? 'When the plant pays for itself'
-    : 'Where the money goes, year by year'}</h3>
         <p class="cf-lede">${span} years of the engine's own cash table: one year built,
           ${span - data.construction_years} operated${data.sales
-    ? `, ${num(data.sales.total)} ${escape(data.sales.unit)} sold` : ''}. Cash in above
+    ? `, ${mag(data.sales.total)} ${escape(data.sales.unit)} sold` : ''}. Cash in above
           the datum, cash out below, and the line is the running sum of the two.</p>
       </div>
       ${payback(data)}
@@ -501,7 +537,7 @@ function restBand(data, lines, unit) {
   const last = 30 + (Math.ceil(lines.length / SCAN_COLUMNS) - 1) * 13;
   return `<g class="cf-rest" aria-hidden="true">
     <text x="0" y="12" class="cf-scan-k">ALL ${data.span} YEARS</text>
-    <text x="${PLOT.left}" y="12" class="cf-scan-n">hover a year for its
+    <text x="${SCAN_HINT}" y="12" class="cf-scan-n">hover a year for its
       ${lines.length} lines at full precision</text>
     <text x="0" y="${last.toFixed(1)}" class="cf-scan-k">\u03A3 NET</text>
     <text x="${PLOT.left}" y="${last.toFixed(1)}" class="cf-scan-b">${mag(netSum)} ${
@@ -513,6 +549,12 @@ function restBand(data, lines, unit) {
 }
 
 const SCAN_COLUMNS = 4;
+
+/* The resting band's two rows are label-then-value. The lower label is "Σ NET" and
+ * clears the plot's left edge at 46; the upper one is "ALL 21 YEARS" and does not — it
+ * runs to 66, so the hint beside it started nine pixels inside the word "YEARS". Only
+ * the hint moves: the Σ row's value is aligned to the plot edge on purpose. */
+const SCAN_HINT = 76;
 
 /** One year's readout, in the band the plot leaves clear above itself. */
 function scanFor(data, lines, index, unit) {

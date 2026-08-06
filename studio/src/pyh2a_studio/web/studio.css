@@ -126,7 +126,9 @@ body { font-size: 14px; }
 
 #sheet {
   display: grid;
-  grid-template-columns: 312px minmax(500px, 1fr) minmax(400px, 44%);
+  /* At 1440 the old 44% left the middle column pinned at its 500px minimum while
+     the reference panel took 628. The sheet is what you work in; it gets the slack. */
+  grid-template-columns: 312px minmax(560px, 1fr) minmax(380px, 34%);
   height: calc(100vh - 46px);
   overflow: hidden;
 }
@@ -195,7 +197,9 @@ body:has(#firstedits:not([hidden])) #sheet { height: calc(100vh - 46px - 29px); 
   grid-template-columns: 32px 10px 1fr auto;
   align-items: center;
   gap: 6px;
-  padding: 5px var(--sp-4) 5px 6px;
+  /* The right padding was 16px and the longest step name — "Discounted Cash Flow", the
+   * one every run ends on — needed 3 of them. It read "Discounted Cash Fl…" forever. */
+  padding: 5px var(--sp-2) 5px 6px;
   cursor: pointer;
   border-left: 2px solid transparent;
   position: relative;
@@ -786,7 +790,8 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
 
 .cell-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px 64px 26px;
+  /* The last track held a button reading "copy" that needed 28px to say it. */
+  grid-template-columns: minmax(0, 1fr) 132px 64px 30px;
   align-items: center;
   gap: var(--sp-2);
   padding: 2px var(--sp-5) 2px calc(var(--sp-5) + 14px);
@@ -794,7 +799,18 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
   font-size: 12.5px;
 }
 .cell-row:hover { background: var(--paper-2); }
-.cell-row .r { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+/* One line and a hard ellipsis lost the identifying end of every long name: the panel
+ * showed "Non-Depreciable Capital Costs ›…" four times over for four different rows, and
+ * "Decommissioning costs (fraction of…" never revealed what fraction of what. Two lines
+ * is enough for all but a handful, and short names still sit on one — the row grid
+ * centres, so the rhythm only breaks where the name actually needs the space. */
+.cell-row .r {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--ink);
+}
 .cell-row .r .col { color: var(--ash); font-family: var(--mono); font-size: 10px; margin-left: 5px; }
 .cell-row .v {
   font-family: var(--mono);
@@ -1509,12 +1525,21 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
  */
 #panelbar[hidden], #scrim[hidden] { display: none; }
 
-@media (max-width: 900px) {
-  #masthead { flex-wrap: wrap; height: auto; padding: 6px var(--sp-3); row-gap: 4px; }
-  #masthead h1 { font-size: 17px; }
-  #masthead .readouts { order: 3; width: 100%; justify-content: space-between; }
-  #masthead .grow { display: none; }
-  .brand .surface, .brand .sep { display: none; }
+/* ============================================================ the layout gives way
+ *
+ * Three columns need about 1400px. Below that they were still all drawn, and the one
+ * that lost was the scope panel: its rows are `name | value | sparkline | copy`, and
+ * only the name is elastic. At a 1280px window the name column measured 159px and every
+ * row in the panel read "Ca...", "Aft...", "Bas..." — 73 truncated strings on one screen.
+ *
+ * So the columns leave one at a time, widest and most dispensable first. The rail is
+ * 312px and is the map of the run, so it holds its ground to 900px; the scope panel is
+ * a reference you consult, so it becomes a drawer as soon as the sheet would suffer.
+ * The drawer machinery below 900px already existed — this reuses it rather than
+ * inventing a second way to hide a panel.
+ */
+@media (max-width: 1400px) {
+  #sheet { grid-template-columns: 312px minmax(0, 1fr); }
 
   #panelbar {
     display: flex;
@@ -1550,6 +1575,61 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  /* `#panelbar button` above scores 101 and a bare `#show-rail` scores 100, so the door
+   * kept its `display: flex` and the bar offered a way into a panel that is already a
+   * column on screen. Qualify it. */
+  #panelbar #show-rail { display: none; }
+
+  #scope {
+    position: fixed;
+    /* Below the masthead, not over it. On a phone the drawer owns the screen because
+     * there is no room to share; here there is, and covering the levelized cost and the
+     * source button to read a reference list is a bad trade. */
+    top: 46px;
+    bottom: 0;
+    right: 0;
+    width: min(86vw, 460px);
+    z-index: 20;
+    background: var(--paper-2);
+    border-left: 1px solid var(--rule-firm);
+    overflow-y: auto;
+    transform: translateX(100%);
+    transition: transform 200ms var(--ease), visibility 200ms;
+    visibility: hidden;
+  }
+  body.scope-open #scope { transform: none; visibility: visible; }
+
+  #scrim {
+    display: block;
+    position: fixed;
+    inset: 46px 0 0;
+    z-index: 15;
+    background: rgba(38, 37, 31, 0.34);
+  }
+}
+
+@media (max-width: 900px) {
+  #masthead { flex-wrap: wrap; height: auto; padding: 6px var(--sp-3); row-gap: 4px; }
+  #masthead h1 { font-size: 17px; }
+  #masthead .readouts { order: 3; width: 100%; justify-content: space-between; }
+  #masthead .grow { display: none; }
+  .brand .surface, .brand .sep { display: none; }
+
+  /* Both panels are drawers now, so both doors are real again. Qualified to match the
+   * `#panelbar #show-rail` that hides it at the wider breakpoint, which also matches
+   * here and would otherwise win on source order. */
+  #panelbar #show-rail { display: flex; }
+  #panelbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 5px var(--sp-3);
+    background: var(--paper-2);
+    border-bottom: 1px solid var(--rule-firm);
+    position: sticky;
+    top: 0;
+    z-index: 12;
   }
 
   #sheet { display: block; height: auto; overflow: visible; }

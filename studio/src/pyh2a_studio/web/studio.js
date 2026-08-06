@@ -10,7 +10,9 @@
  * reproduce.
  */
 
-import { annual, calendar, decomposition } from './figures.js';
+import {
+  annual, annualHead, calendar, decomposition, decompositionHead,
+} from './figures.js';
 import { highlight } from './highlight.js';
 import { bounds, clip, cost, escape, ms, num, spark, value } from './format.js';
 import { coach, firstVisit, markVisited, refuse, startTour, welcome, wireChooserExtras } from './welcome.js';
@@ -1414,14 +1416,36 @@ async function openFigures(stepName, kind = null) {
   const drawn = await call('figures', { step: stepName });
   if (!drawn || el('figures').hidden) return;
   figureState.data = drawn.figures;
+  // The head drawn a moment ago came from the catalogue, because there was nothing else
+  // to draw it from. Now there is.
+  renderFigureTabs(offered);
   paintFigure();
   el('figures').querySelector('.fig-panel').focus({ preventScroll: true });
 }
 
+/* Which renderer can name a figure once its data has arrived. A kind absent from this
+ * map keeps the catalogue's wording, which is the case for the hourly calendar: its
+ * plate carries its own controls and its title does not change with the run. */
+const FIGURE_HEADS = {
+  contributions: decompositionHead,
+  annual_costs: annualHead,
+};
+
 function renderFigureTabs(offered) {
   const current = offered.find((figure) => figure.kind === figureState.kind) || offered[0];
-  el('fig-kicker').textContent = `${labelFor(figureState.step)} · ${current.kicker}`;
-  el('fig-title').textContent = current.title;
+  // The catalogue's title is written before the run and cannot know the answer. Once
+  // the data has arrived the renderer can say it better, so it does.
+  const data = figureState.data && figureState.data[figureState.kind];
+  const head = data && FIGURE_HEADS[figureState.kind]
+    ? FIGURE_HEADS[figureState.kind](data)
+    : { kicker: current.kicker, title: current.title };
+  // The step is named first so you know where in the run you are, but on the cash-flow
+  // figure the step IS "Discounted Cash Flow" and the kicker opens with the same three
+  // words: "Discounted Cash Flow · discounted cash flow · 21 analysis years". Say it once.
+  const step = labelFor(figureState.step);
+  el('fig-kicker').textContent = head.kicker.toLowerCase().startsWith(step.toLowerCase())
+    ? head.kicker : `${step} · ${head.kicker}`;
+  el('fig-title').textContent = head.title;
   el('fig-tabs').innerHTML = offered.length > 1
     ? offered.map((figure) => `<button class="fig-tab ${figure.kind === figureState.kind
         ? 'on' : ''}" data-fig-kind="${figure.kind}">${escape(figure.kicker)}</button>`).join('')
@@ -1772,13 +1796,20 @@ function showPanel(which) {
 
 function closePanels() { showPanel(null); }
 
+/*
+ * Two thresholds, because the columns leave one at a time. Below `tight` the scope
+ * panel is a drawer and the rail is still a column; below `narrow` both are drawers.
+ * These must stay in step with the two media queries in studio.css — the CSS decides
+ * what is drawn and this decides which doors are real.
+ */
 function narrow() { return window.matchMedia('(max-width: 900px)').matches; }
+function tight() { return window.matchMedia('(max-width: 1400px)').matches; }
 
 /* The bar is the only route back to the two panels, so it carries what they head
  * themselves with — otherwise it is two unlabelled doors. */
 function renderPanelBar() {
   const bar = el('panelbar');
-  bar.hidden = !narrow() || !state.project;
+  bar.hidden = !tight() || !state.project;
   if (bar.hidden) return;
   const nodes = state.graph ? state.graph.nodes : state.rail;
   el('panelbar-steps').textContent = nodes.length ? String(nodes.length) : '';
@@ -1794,7 +1825,13 @@ el('show-rail').onclick = () =>
 el('show-scope').onclick = () =>
   showPanel(document.body.classList.contains('scope-open') ? null : 'scope');
 el('scrim').onclick = closePanels;
-window.addEventListener('resize', () => { if (!narrow()) closePanels(); renderPanelBar(); });
+window.addEventListener('resize', () => {
+  // A drawer that has grown back into a column must not keep its scrim: widening the
+  // window from 800 to 1200 with the rail open left a veil over the whole app with
+  // nothing behind it, and the only way out was to guess that clicking it would help.
+  if (!tight() || (!narrow() && document.body.classList.contains('rail-open'))) closePanels();
+  renderPanelBar();
+});
 
 el('fig-close').onclick = closeFigures;
 el('figures').onclick = (event) => { if (event.target.id === 'figures') closeFigures(); };

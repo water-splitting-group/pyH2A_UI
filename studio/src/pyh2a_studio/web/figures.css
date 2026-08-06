@@ -95,8 +95,25 @@
   font-size: 9px;
   color: var(--ash);
 }
+/* A tick near the end of the lane has nowhere to put its label but off the plate: the
+ * axis ended "0.015  0.02  0.02" with the last value sliced by the panel edge. Past 84%
+ * the label hangs to the left of its own rule instead. */
+.dc-tick-end span { left: auto; right: 3px; text-align: right; }
 .dc-tick-total { background: var(--rule-firm); }
 
+/* A family collapsed onto its single stream keeps the family's colour chip in the
+ * register column, beside the stream's number, so the four-family reading at the foot
+ * of the plate still has something to point at up here. */
+.dc-band-one .dc-stream .dc-reg::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 5px;
+  border-radius: 1px;
+  background: var(--fam);
+  vertical-align: 1px;
+}
 /* A family is the subtotal its streams add up to, so it is set in the type of a heading
    and its bar is a wash: present, and clearly not one of the things being summed. */
 .dc-band + .dc-band { margin-top: var(--sp-3); }
@@ -252,6 +269,10 @@
 .cf-head { margin-bottom: var(--sp-3); }
 .cf-hero {
   float: right;
+  /* Unconstrained it grew to 463px and its one-line gloss — "cumulative turns positive
+   * 5.02 yr after start-up" — ran the whole width of the plate as a single line of prose
+   * hanging off the right edge. It is a callout; it gets a callout's measure. */
+  max-width: 300px;
   margin: 0 0 var(--sp-3) var(--sp-4);
   text-align: right;
 }
@@ -284,7 +305,9 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.cf-side .ly { font-family: var(--mono); font-size: 10px; color: var(--ash); }
+/* The year a summary figure belongs to, set after its unit. With no space it read
+ * "5.59 M USDyr 18", and "USDyr" looks like a unit somebody defined on purpose. */
+.cf-side .ly { font-family: var(--mono); font-size: 10px; color: var(--ash); margin-left: 6px; }
 
 .cf-legend-h { margin-top: var(--sp-4); }
 .cf-leg {
@@ -298,6 +321,16 @@
 .cf-sw { width: 11px; height: 11px; border-radius: 1px;
   background: var(--ink, var(--rule-firm)); flex: none; }
 .cf-leg-n { color: var(--graphite); }
+/* A line the engine filled with zeros says so, in its own voice, on its own line —
+ * run together it read "Variable operatingengine wrote zero". */
+.cf-leg-n em {
+  display: block;
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--ash);
+}
 .cf-leg-v {
   font-family: var(--mono);
   text-align: right;
@@ -313,7 +346,7 @@
 
 .cf-plot { position: relative; min-width: 0; }
 .cf-plot svg { display: block; width: 100%; height: auto; overflow: visible; }
-.cf-plot { --plot-min: 420px; }
+.cf-plot { --plot-min: 480px; }
 .cf-plot svg { min-height: var(--plot-min); }
 /* SVG's initial fill is black, and it inherits. A group of stroke-only gridlines
    therefore paints every one of its paths as a filled black shape unless told not to —
@@ -486,6 +519,50 @@
 svg.cal-grid { display: block; width: 100%; height: 300px; }
 .cal-ink { fill: var(--ink); }
 .cal-hit { fill: transparent; }
+
+/* What the other nineteen years put in this cell, drawn behind the year you picked.
+ * It was emitted with no rule at all, so it inherited SVG's black and painted the whole
+ * envelope at full strength — the selected year vanished into a grey smear of every
+ * year at once, which is the opposite of what a year picker is for. */
+.cal-ground { fill: var(--ink); opacity: 0.16; }
+
+/* The hour-of-day marginal sums each row of the grid, so it is only readable if its
+ * rows are the grid's rows. Unstyled, the SVG fell back to its intrinsic 300 × 150 and
+ * sat below its own caption, 25px adrift of the hours it was summarising. Absolute
+ * inside the stretched flex child makes its box exactly the plate's box. */
+.cal-hod {
+  position: relative;
+  flex: none;
+  width: 132px;
+  min-width: 132px;
+}
+.cal-hod svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.cal-hod .kicker {
+  position: absolute;
+  top: 0;
+  right: 0;
+  text-align: right;
+  line-height: 1.35;
+  background: var(--paper);
+  padding-left: 4px;
+}
+/* The tallest hour, labelled where it happens rather than in a legend. */
+.cal-hod-peak {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--graphite);
+  background: var(--paper);
+  padding-left: 4px;
+}
 
 .cal-daily { margin-top: 6px; }
 .cal-daily svg { display: block; width: 100%; height: 62px; }
