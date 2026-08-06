@@ -602,9 +602,12 @@ function unmetBand(stepName) {
     ${section(yours, (n) => `${plural(n, 'value')} only you can supply`,
       () => '<span class="by own">no installed plugin writes this — click to fill it in</span>',
       true)}
-    ${section(movable, (n) => `${plural(n, 'value')} that arrive too late`,
-      (gap) => `<span class="by">${escape(gap.runs_later.join(', '))} writes this, but runs
-        after ${escape(labelFor(gap.step))} — move one of them</span>`)}
+    ${section(movable,
+      (n) => `${plural(n, 'value')} that ${n === 1 ? 'arrives' : 'arrive'} too late`,
+      (gap) => `<span class="by">${escape(gap.runs_later.join(', '))} ${
+        gap.runs_later.length === 1 ? 'writes' : 'write'} this, but ${
+        gap.runs_later.length === 1 ? 'runs' : 'run'} after ${
+        escape(labelFor(gap.step))} — move one of them</span>`)}
     ${section(addable, (n) => `${plural(n, 'value')} a plugin could supply`,
       (gap) => `<span class="by">written by ${gap.suggestions.map((entry) =>
         `<button class="fix" data-add-plugin="${escape(entry.name)}">${escape(entry.label)}</button>`
@@ -1250,9 +1253,22 @@ function toggle(key) {
   else state.collapsed.add(key);
 }
 
+/*
+ * Arm or disarm a binding, and redraw everything that depends on it.
+ *
+ * Every scope row's button reads "bind" while something is armed and "copy" otherwise,
+ * so the state and 157 button labels have to move together. They did not: arming
+ * redrew only the bar, leaving every button you could reach to perform the bind
+ * claiming it would copy instead. `renderScope` redraws the bar as part of its own
+ * work, which is why this cannot live in `renderBinding`.
+ */
+function setBinding(next) {
+  state.binding = next;
+  renderScope();
+}
+
 function armBinding(table, row, column, kind) {
-  state.binding = { table, row, column, kind };
-  renderBinding();
+  setBinding({ table, row, column, kind });
 }
 
 /**
@@ -1875,7 +1891,7 @@ document.addEventListener('keydown', (event) => {
   if (target instanceof Element && target.matches('input, textarea, select')) return;
   if (event.key === '/') { event.preventDefault(); el('find').focus(); }
   if (event.key === 'Escape') {
-    if (state.binding) { state.binding = null; renderBinding(); }
+    if (state.binding) setBinding(null);
     el('chooser').hidden = true;
     el('plugins').hidden = true;
     el('source').hidden = true;
@@ -1891,10 +1907,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 document.addEventListener('click', (event) => {
-  if (event.target.matches('[data-cancel-bind]')) {
-    state.binding = null;
-    renderBinding();
-  }
+  if (event.target.matches('[data-cancel-bind]')) setBinding(null);
 });
 
 /* ------------------------------------------------------------------ start */
