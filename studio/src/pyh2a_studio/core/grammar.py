@@ -142,11 +142,88 @@ def _start_table(document, line, line_number):
     return table
 
 
+OUTLIER_GAP = 24
+'''How far clear of the pack a cell must stand, in characters, before the column stops
+widening for it.
+
+Columns are padded to their widest cell so the pipes line up, and the whole difficulty is
+that one cell can be enormous. `# Utilities` holds `0.0023749510945008` and an 83-character
+`pyH2A.Lookup_Tables.Utility_Cost~..._Reference_Case.csv` in the same `Cost_Value` column:
+widening to 83 strands 65 spaces on the other row and pushes five further columns off the
+screen for nothing.
+
+But width alone cannot tell that case from a column that is *uniformly* wide.
+`Photocatalytic > Indirect Capital Costs` names its rows `Engineering and design (fraction
+of total direct capital costs)` and three siblings, 57 to 66 characters; clipping those to
+any fixed width makes every row ragged and buys nothing. So the test is not how wide the
+widest cell is, it is how *lonely*: drop the widest cell only while it stands more than
+`OUTLIER_GAP` clear of the next-widest cell in the same column, then pad to what is left.
+A width two rows share is never an outlier, which is what keeps
+`{PEC Cells > Number > Value, -}` — four identical 31-character references beside one
+`None` — setting its column.
+
+24 comes from the corpus. Across the 105 tables in the five shipped pathways plus
+`tea_mass`, sort every column by that lonely-widest gap and there is a 13-character dead
+zone: the gaps worth clipping are 33, 38, 47, 56 and three at 65, and the next one down is
+20 (`Other Fixed Operating Costs > Path`, two references at 51 and 71 — both long, both
+worth aligning). Any value from 20 to 32 emits byte-identical files for all six, so 24 sits
+in the middle of the insensitive range rather than on an edge.
+
+Outliers are never truncated — that would corrupt the file. They overflow, and only the
+cells after them on that one line lose the grid.'''
+
+
+def _column_widths(header, body):
+    '''Padded width per column index for one table's header and body cell-lists.
+
+    The header never votes on the width, it only sets a floor: a column has to be at
+    least as wide as its own heading (`Price_Conversion_Factor_Unit` is 28 characters
+    over a column of `-`) or the heading stops standing over its column. But letting the
+    heading vote would break the other direction — a one-row `# Direct Capital Costs -
+    Electrolyzer` would count `Path` as the pack and treat its single 42-character
+    reference as the outlier, leaving the heading nothing to sit above.
+    '''
+
+    lengths = {}
+    for cells in body:
+        for index, cell in enumerate(cells):
+            lengths.setdefault(index, []).append(len(cell))
+
+    widths = []
+    for index in range(max([len(header)] + [len(cells) for cells in body])):
+        column = sorted(lengths.get(index, ()), reverse=True)
+        at = 0
+        while at + 1 < len(column) and column[at] - column[at + 1] > OUTLIER_GAP:
+            at += 1
+        heading = len(header[index]) if index < len(header) else 0
+        widths.append(max(column[at] if column else 0, heading))
+    return widths
+
+
+def _pad(cells, widths):
+    '''One table line's cells, padded into columns.
+
+    Every cell but the last is padded; the last is left flush, because trailing
+    whitespace is noise and because rows are ragged — most `# Workflow` rows stop after
+    `Position`, and padding out to a column a row does not have would be a lie.
+    '''
+
+    return [cell.ljust(widths[index]) for index, cell in enumerate(cells[:-1])] + cells[-1:]
+
+
 def serialize_document(document):
     '''Serialize a ``{name: Table}`` dict back to engine-grammar markdown.
 
-    Emits exactly the grammar the engine parses correctly (audit §6): no outer pipes,
-    a blank line before every header, one ``---`` separator per column, verbatim cells.
+    Emits exactly the grammar the engine parses correctly (audit §6): no outer pipes, a
+    blank line before every header, one ``---`` separator per column, verbatim cells.
+
+    Cells are padded so the pipes line up, because a `# Utilities` row is ten cells wide
+    and with single spaces around the pipes nothing in it can be read down a column — not
+    in the source drawer, and not in the file the user downloads. The engine is unaffected:
+    it splits on ``|`` and calls ``strip(' \\n')`` on every piece
+    (``Utilities/input_modification.py``), so the padding cannot reach it. And because
+    ``parse_document`` strips too, alignment is idempotent — re-serializing a serialized
+    file gives the same bytes.
 
     Parameters
     ----------
@@ -160,20 +237,28 @@ def serialize_document(document):
 
     blocks = []
     for table in document.values():
-        lines = [f'# {table.name}', '']
-        if table.columns:
-            lines.append(' | '.join(table.columns))
-            lines.append(' | '.join(['---'] * len(table.columns)))
+        header = list(table.columns)
+        body = []
         for row_name, row in table.rows.items():
             # Ragged rows: the engine's zip drops trailing missing cells entirely
             # (key absent, not 'n/a') — so absent trailing columns must stay absent.
             row_columns = list(table.columns[1:])
             while row_columns and row_columns[-1] not in row:
                 row_columns.pop()
-            cells = [row_name]
-            for column_name in row_columns:
-                cells.append(row.get(column_name, ''))
-            lines.append(' | '.join(cells).rstrip())
+            body.append([row_name] + [row.get(column, '') for column in row_columns])
+
+        widths = _column_widths(header, body)
+        lines = [f'# {table.name}', '']
+        if header:
+            padded = _pad(header, widths)
+            lines.append(' | '.join(padded).rstrip())
+            # The rule underlines the header as emitted, the way a hand-written markdown
+            # table does — measured off the padded heading rather than off `widths` so the
+            # last column, which is never padded, gets a rule its own length instead of
+            # one stretched to a width no cell in it uses. Never fewer than three dashes:
+            # two stop being a markdown rule.
+            lines.append(' | '.join('-' * max(3, len(cell)) for cell in padded))
+        lines.extend(' | '.join(_pad(cells, widths)).rstrip() for cells in body)
         blocks.append('\n'.join(lines))
 
     return '\n\n'.join(blocks) + '\n'

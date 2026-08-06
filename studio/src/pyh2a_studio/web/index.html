@@ -10,6 +10,10 @@
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="studio.css">
 <link rel="stylesheet" href="figures.css">
+<link rel="stylesheet" href="brand.css">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 </head>
 <body>
 
@@ -18,6 +22,7 @@
      is wrong. Nothing here scrolls away. -->
 <header id="masthead">
   <div class="brand">
+    <span class="mark-glyph" aria-hidden="true"></span>
     <span class="mark">paper plant</span>
     <span class="sep">·</span>
     <span class="surface" id="surface-name">worksheet</span>
@@ -100,7 +105,7 @@
   <div class="welcome-panel" role="dialog" aria-modal="true"
        aria-labelledby="welcome-title" tabindex="-1">
     <header>
-      <span class="kicker">paper plant · studio</span>
+      <span class="kicker"><span class="mark-glyph" aria-hidden="true"></span>paper plant · studio</span>
       <h1 id="welcome-title">What does it cost to make this?</h1>
       <p class="lede">A worksheet over <a href="https://github.com/water-splitting-group/pyH2A"
         target="_blank" rel="noreferrer">pyH2A</a>. A project is one markdown file of

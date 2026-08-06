@@ -19,6 +19,7 @@ const PYODIDE = 'https://cdn.jsdelivr.net/pyodide/v0.28.3/full/';
 
 const panel = document.getElementById('boot');
 const bar = document.getElementById('boot-bar');
+const glyph = document.getElementById('boot-mark');
 const note = document.getElementById('boot-note');
 const detail = document.getElementById('boot-detail');
 
@@ -33,6 +34,13 @@ const STAGES = [
 function stage(index) {
   const [percent, label, why] = STAGES[index];
   bar.style.width = `${percent}%`;
+  // The mark fills from the same number as the bar rather than from a timer, so what
+  // you are watching rise is the thing that is actually loading. Clearing `data-waiting`
+  // stops the idle breath the moment there is real progress to show.
+  if (glyph) {
+    glyph.style.setProperty('--fill', `${percent}%`);
+    glyph.removeAttribute('data-waiting');
+  }
   note.textContent = label;
   detail.textContent = why;
 }
@@ -40,6 +48,7 @@ function stage(index) {
 function fail(error) {
   bar.style.width = '100%';
   bar.classList.add('bad');
+  if (glyph) { glyph.removeAttribute('data-waiting'); glyph.style.setProperty('--fill', '100%'); }
   note.textContent = 'could not start';
   detail.innerHTML = `${String(error).replace(/[&<>]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}

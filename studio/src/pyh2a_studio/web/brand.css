@@ -1,0 +1,76 @@
+/* ============================================================ the mark
+ *
+ * A leaf whose midrib is a process pipe. The band down the centre is one continuous
+ * column that changes polarity partway: above, it is cut out of the fill and reads as a
+ * channel; below, it is ink and reads as the stem leaving the leaf. That flip is the
+ * whole mark — a stream crossing a boundary, which is how a flowsheet draws a feed
+ * entering a unit.
+ *
+ * Shipped as a CSS mask rather than an `<img>`, because the two places it appears have
+ * opposite grounds: the masthead is the app's dark surface and the front door is cream.
+ * A mask inherits `currentColor`, so one file serves both and neither needs a recolour.
+ * `mark.svg` is authored `fill="currentColor"` as well, so it also works inlined.
+ */
+.mark-glyph {
+  display: inline-block;
+  width: var(--mark-size, 15px);
+  /* The artwork is 44 × 64 on a 64-unit grid; this keeps whole pixels at 16 and 32. */
+  height: calc(var(--mark-size, 15px) * 64 / 44);
+  background: currentColor;
+  -webkit-mask: url('assets/mark.svg') no-repeat center / contain;
+  mask: url('assets/mark.svg') no-repeat center / contain;
+  vertical-align: -2px;
+  flex: none;
+}
+
+#masthead .brand { display: flex; align-items: center; gap: 7px; }
+.welcome-panel header .kicker { display: flex; align-items: center; gap: 8px; }
+.welcome-panel header .mark-glyph { --mark-size: 17px; }
+
+/* ============================================================ the boot mark
+ *
+ * The static build waits on Pyodide — eight seconds warm, up to twenty-five on a cold
+ * cache — and a progress bar with a changing label is an honest but joyless way to spend
+ * them. The mark fills instead: the channel is a level that rises with real progress,
+ * so the thing you are watching is the thing that is loading.
+ *
+ * Deliberately not Lottie. lottie-web is about 250 KB of JavaScript, and shipping it to
+ * decorate the wait for a 25 MB runtime makes the wait longer; worse, it would have to
+ * load and run *before* it could show you that something was loading. This is one
+ * element, two gradients and a keyframe, and it is the app's own glyph rather than a
+ * stock spinner.
+ */
+.boot-mark {
+  position: relative;
+  width: 58px;
+  height: 84px;
+  margin: 0 auto var(--sp-4);
+  -webkit-mask: url('assets/mark.svg') no-repeat center / contain;
+  mask: url('assets/mark.svg') no-repeat center / contain;
+  /* The unfilled part of the glyph, so the shape is legible from the first frame
+     rather than materialising out of nothing. */
+  background: color-mix(in srgb, currentColor 22%, transparent);
+}
+.boot-mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  /* `--fill` is written by boot.js from the same number that drives the bar. The
+     gradient's soft edge is the meniscus; a hard line reads as a clipping bug. */
+  clip-path: inset(calc(100% - var(--fill, 0%)) 0 0 0);
+  transition: clip-path 420ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Before the first real progress arrives there is nothing honest to show, so the level
+   breathes rather than pretending to advance. It stops the moment `--fill` is set. */
+.boot-mark[data-waiting]::after { animation: boot-breathe 2.4s ease-in-out infinite; }
+@keyframes boot-breathe {
+  0%, 100% { clip-path: inset(88% 0 0 0); }
+  50% { clip-path: inset(70% 0 0 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-mark::after { transition: none; }
+  .boot-mark[data-waiting]::after { animation: none; clip-path: inset(80% 0 0 0); }
+}

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 0 44 64" width="44" height="64"
+     fill="currentColor" role="img" aria-label="Paper Plant">
+<title>Paper Plant</title>
+<!-- A leaf whose midrib is a process pipe.
+
+     The band down the centre is one continuous 7-unit column that changes polarity at
+     y=44: above it, it is cut out of the fill and reads as a channel; below it, it is
+     ink and reads as the stem leaving the leaf. That flip is the whole mark — a stream
+     crossing a boundary, which is how a flowsheet draws a feed entering a unit.
+
+     Every earlier draft failed at 16px, which is where this mark spends most of its
+     life. Hairline veins branching off the midrib at 45 degrees looked best at 180px
+     and turned into an even grey diamond at 16px, because the cuts and the surviving
+     fill were both ~1px; a bowtie gate valve on the midrib read as a crucifix. What
+     survives a 4x downsample is one bold silhouette with one wide cut, so that is all
+     this is. Geometry is on a 64-unit grid so every edge lands on a whole pixel at
+     16px (4 units), 32px (2 units) and 64px.
+
+     Drawn as two paths, not one: the leaf carries the channel as an even-odd hole,
+     and the stem is separate because it overlaps the leaf's taper between y=44 and
+     y=50.5. As a third subpath the overlap would even-odd itself into a hole and
+     punch the stem out of the leaf. -->
+<path fill-rule="evenodd" d="M32 4C37 12 50 19 50 28C50 38 41 47 32 52C23 47 14 38 14 28
+  C14 19 27 12 32 4ZM28.5 12H35.5V44H28.5Z"/>
+<path d="M29.5 44H34.5V60H29.5Z"/>
+</svg>

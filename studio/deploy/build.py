@@ -64,6 +64,7 @@ news rather than a broken build."""
 
 BOOT_PANEL = '''<div id="boot">
   <div class="boot-panel">
+    <div class="boot-mark" id="boot-mark" data-waiting aria-hidden="true"></div>
     <span class="kicker">paper plant · studio</span>
     <h1>Starting the engine</h1>
     <p class="boot-lede">pyH2A runs here in your browser — nothing is uploaded and there
@@ -92,7 +93,10 @@ BOOT_CSS = '''
   justify-content: center;
 }
 #boot[hidden] { display: none; }
-.boot-panel { width: min(560px, 84vw); }
+.boot-panel { width: min(560px, 84vw); text-align: center; }
+/* The mark inherits currentColor, and the boot ground is paper, so give it the ink the
+   rest of the panel is set in rather than leaving it to a browser default. */
+.boot-panel .boot-mark { color: var(--prussian); }
 .boot-panel h1 {
   font-family: var(--serif);
   font-size: 34px;
@@ -149,6 +153,12 @@ def build(out_dir):
                          f'whole frontend, so something is wrong with the checkout')
     for path in shipped:
         shutil.copy2(path, out_dir / path.name)
+
+    # The mark is referenced from CSS as `url('assets/mark.svg')`, and a mask whose image
+    # 404s renders as nothing at all rather than as a broken-image glyph — so a forgotten
+    # copy here is an invisible logo, in the deployed build only.
+    if (web / 'assets').is_dir():
+        shutil.copytree(web / 'assets', out_dir / 'assets')
 
     _rewrite_index(out_dir / 'index.html')
     (out_dir / 'studio.css').write_text((out_dir / 'studio.css').read_text() + BOOT_CSS)

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="12 2 40 60" role="img" aria-label="Paper Plant">
+<title>Paper Plant</title>
+<!-- The same glyph as mark.svg, cropped to 2 units of margin instead of 4, because a
+     favicon has 16 pixels and cannot spend three of them on air.
+
+     Colour is baked rather than inherited: a favicon renders outside the page, so
+     currentColor has nothing to inherit from. The media query is the reason this file
+     exists at all next to the PNGs — Prussian #24365B on a dark tab strip measures
+     1.4:1 against Chrome's #202124 and disappears, so on a dark UA the ink becomes
+     paper. A PNG favicon cannot do this, which is why the SVG is declared first and
+     the 32px PNG is only the fallback for browsers that ignore SVG icons. -->
+<style>
+  path { fill: #24365B; }
+  @media (prefers-color-scheme: dark) { path { fill: #FAF9F5; } }
+</style>
+<path fill-rule="evenodd" d="M32 4C37 12 50 19 50 28C50 38 41 47 32 52C23 47 14 38 14 28
+  C14 19 27 12 32 4ZM28.5 12H35.5V44H28.5Z"/>
+<path d="M29.5 44H34.5V60H29.5Z"/>
+</svg>
