@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "pip3 install uv",
+  "installCommand": "",
   "buildCommand": "cd studio && UV_PYTHON=3.12 uv run --with scipy --with-editable . python deploy/build.py",
   "outputDirectory": "studio/deploy/dist"
 }
