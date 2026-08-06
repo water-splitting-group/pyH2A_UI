@@ -585,3 +585,36 @@ every shipped pathway depreciates over twenty years) and a "fix verified" run wh
 five pathways reproduce their published cost in native *and* WASM; a blank plant can be
 named, extended, corrected and reloaded without loss; the build refuses five separate
 sabotages, each naming what it found. `studio/README.md` is the map.
+
+---
+
+## 6. Publishing
+
+**2026-08-06** — Split into a published repo and a local archive.
+
+`github.com/hrishioa/pyh2a-ui` carries the app, the pyH2A submodule pinned at `a15e7bb`,
+and this documentation: 80 files, 572 KB of git objects. What it does not carry is the
+254 review screenshots (about 100 MB), `visual-pack/` and the design research behind it,
+the GitHub corpus mirror, the WASM spike, and `app/` — the Streamlit build that came
+first. Those stay in the original working repo, which keeps the full 34-commit history
+and every file. Nothing was deleted; the published tree is a subset chosen so a clone is
+under a megabyte and Vercel does not re-fetch a hundred of them on every deploy.
+
+Deploying is `vercel.json`: install uv, run `deploy/build.py`, serve `studio/deploy/dist`.
+No custom headers — the boot fetches Pyodide from jsdelivr, and speculative COOP/COEP
+would put that cross-origin load at risk for a threading feature this app does not use.
+
+Verified rather than assumed, because a build that only works on the machine that wrote
+it is not a deploy story. The exact `installCommand` and `buildCommand` were run against a
+cold `--recurse-submodules` clone inside `amazonlinux:2023`, which is Vercel's build
+image; the image ships Python 3.9, and `UV_PYTHON=3.12` had uv fetch its own interpreter.
+The result is byte-identical to the local build on ten of eleven files, and the eleventh —
+the zip, which embeds mtimes — has all 115 members matching by SHA-256. Then the same
+build, cloned back down from GitHub, was opened in a browser: 4.1943 USD/kg, seventeen
+steps, seventeen clean, no console errors.
+
+Two things moved on the way out. `scratch/` held 48 throwaway harnesses from the review
+rounds; only `tamper.py` was load-bearing, and it is not scratch — it proves the build's
+self-verification catches five real sabotages, so it moved to `deploy/` beside the thing
+it tests. And it was carrying its own stale claim: it printed "all four refused" while
+running five trials. It counts them now.
