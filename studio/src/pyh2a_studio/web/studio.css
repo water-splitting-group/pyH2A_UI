@@ -1645,6 +1645,16 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
     z-index: 12;
   }
 
+  /* The desktop shell locks the page — `html, body { height: 100%; overflow: hidden }`
+   * — because each of the three columns scrolls inside its own box. Stacking them into
+   * one document at this width made that lock fatal: 1582px of worksheet clipped to an
+   * 844px viewport with no way to reach the rest of it. The columns are a document
+   * here, so the document scrolls.
+   *
+   * `-webkit-overflow-scrolling` is not set on purpose: it is a no-op in current iOS
+   * Safari and its presence implies a momentum quirk that no longer exists. */
+  html, body { height: auto; overflow: visible; }
+
   #sheet { display: block; height: auto; overflow: visible; }
   #sheet > * { overflow: visible; }
   body:has(#firstedits:not([hidden])) #sheet { height: auto; }
@@ -1688,6 +1698,37 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
   .field > .desc, .field > .meta, .field > .problem { grid-column: 2 / -1; }
   .field.eqn { grid-template-columns: 22px 1fr; }
   .field.eqn > * { grid-column: 2; }
+
+  /* The same arithmetic as the field row, in the drawer. `1fr 132px 64px 30px` plus
+     gaps and padding is about 244px of fixed track; the drawer is min(86vw, 340px), so
+     at 390px the name got 45px and every row read "Capit / sp…", "After- / ta…",
+     "Assur / st…". The whole panel was five characters wide.
+
+     Stacked: the name takes the full width on its own line, and the value, sparkline
+     and copy button sit under it. A reference list you cannot read the references in
+     is not a reference list. */
+  .cell-row {
+    grid-template-columns: 1fr auto auto;
+    row-gap: 1px;
+    padding-left: var(--sp-3);
+    padding-right: var(--sp-3);
+  }
+  .cell-row .r {
+    grid-column: 1 / -1;
+    -webkit-line-clamp: 3;
+  }
+  .cell-row .v { text-align: left; }
+  /* Nothing hovers here, so the button cannot wait to be revealed — but 157 of them in
+     filled accent turned the panel into a column of green. Present and quiet: it is the
+     second thing you might do to a row, not the first. */
+  .cell-row .ins {
+    opacity: 1;
+    pointer-events: auto;
+    background: transparent;
+    border: 1px solid var(--rule-firm);
+    color: var(--ash);
+  }
+  .cell-row .ins:active { background: var(--act); border-color: var(--act); color: #FFF; }
 
   /* Inputs below 16px make iOS Safari zoom the page on focus and never zoom back. */
   input.cell, input.unit, #source-text, #find { font-size: 16px; }

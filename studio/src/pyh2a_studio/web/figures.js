@@ -389,11 +389,13 @@ function streamBasis(part, unit) {
  */
 
 /* Every coordinate in this figure derives from here, so the plot's proportions are set
- * in one place. It was 1160 × 600, an aspect of 1.93, which at the width the modal gives
- * it drew 420px tall beside a summary column 548px tall — a 128px hole under the plot,
- * and bars flattened into a band you could not read a year out of. Taller viewBox, same
- * width: the drawing gains the height rather than being stretched into it. */
-const PLOT = { width: 1160, height: 700, left: 46, right: 1104, top: 76, bottom: 620 };
+ * in one place. It was 1160 x 600, an aspect of 1.93, which drew 420px tall beside a
+ * summary column of 548 — a hole under the plot and bars flattened into an unreadable
+ * band. 700 fixed that while the payback callout was still floated and the plot only
+ * had 723px of width; once the callout became a flex column the plot took the whole
+ * 1117 and the same aspect pushed the year axis below the fold. 620 is the compromise
+ * that keeps the bars legible and the axis on screen at a laptop height. */
+const PLOT = { width: 1160, height: 620, left: 46, right: 1104, top: 76, bottom: 540 };
 
 export function annual(data) {
   if (!data || !data.lines || !data.lines.length) return '';

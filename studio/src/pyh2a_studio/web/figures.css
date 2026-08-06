@@ -266,9 +266,23 @@
   --cf-eol-1: color-mix(in srgb, var(--fam-scale) 48%, var(--paper));
 }
 
-.cf-head { margin-bottom: var(--sp-3); }
+/* Lede and payback callout side by side, as two flex children.
+ *
+ * The callout used to be `float: right`, and a float is taller than the one-sentence
+ * lede beside it, so it overhung into `.cf-body` below. Grid tracks are sized against
+ * the space a float leaves: the plot column measured 1150px of a 1568px window and the
+ * 400px beneath the callout stayed empty for the height of the whole figure. Nothing
+ * about this layout wanted text to wrap around the number; it wanted two columns. */
+.cf-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-3);
+}
+.cf-head > div:first-child { flex: 1; min-width: 0; }
 .cf-hero {
-  float: right;
+  flex: none;
   /* Unconstrained it grew to 463px and its one-line gloss — "cumulative turns positive
    * 5.02 yr after start-up" — ran the whole width of the plate as a single line of prose
    * hanging off the right edge. It is a callout; it gets a callout's measure. */

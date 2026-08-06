@@ -1836,6 +1836,18 @@ function renderPanelBar() {
   el('panelbar-here').textContent = state.step ? labelFor(state.step) : '';
 }
 
+/* The long form names the three things a query matches, which is worth the width on a
+ * desktop and does not have it on a phone: at 390px "find a value by table, row or
+ * unit…" was cut mid-word to "find a value by tab". An input cannot be trimmed by CSS
+ * — it is a replaced element, so `::before` and `text-overflow` do nothing to a
+ * placeholder — so the text itself has to change. */
+const FIND_LONG = 'find a value by table, row or unit…';
+const FIND_SHORT = 'find a value…';
+
+function renderFindHint() {
+  el('find').placeholder = narrow() ? FIND_SHORT : FIND_LONG;
+}
+
 el('show-rail').onclick = () =>
   showPanel(document.body.classList.contains('rail-open') ? null : 'rail');
 el('show-scope').onclick = () =>
@@ -1847,7 +1859,9 @@ window.addEventListener('resize', () => {
   // nothing behind it, and the only way out was to guess that clicking it would help.
   if (!tight() || (!narrow() && document.body.classList.contains('rail-open'))) closePanels();
   renderPanelBar();
+  renderFindHint();
 });
+renderFindHint();
 
 el('fig-close').onclick = closeFigures;
 el('figures').onclick = (event) => { if (event.target.id === 'figures') closeFigures(); };
