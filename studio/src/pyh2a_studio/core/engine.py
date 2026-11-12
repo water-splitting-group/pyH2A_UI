@@ -22,7 +22,9 @@ Three facts about the engine shape this module, all established by the audit in
 '''
 
 import copy
+import functools
 import io
+import itertools
 import pkgutil
 import time
 from contextlib import redirect_stdout
@@ -33,7 +35,7 @@ from pyH2A import Plugins
 from pyH2A.Discounted_Cash_Flow import Discounted_Cash_Flow
 from pyH2A.Plugins.Hourly_Irradiation_Plugin import calculate_PV_power_ratio
 from pyH2A.Utilities.functional_unit import resolve_functional_unit
-from pyH2A.Utilities.Unit_Handler import Quantity
+from pyH2A.Utilities.Unit_Handler import DIMENSIONS, Quantity
 from pyH2A.Utilities.input_modification import execute_plugin, import_plugin, num
 
 LEVELIZED_COST_PATH = ('Dependent Variables', 'Levelized cost', 'Value')
@@ -288,8 +290,52 @@ def dimension_base_unit(dimension):
         unknown = True
         return word
 
-    out = re.sub(r'[A-Za-z_][A-Za-z_0-9]*', token, text)
+    out = _DIMENSION_WORD.sub(token, text)
     return '' if unknown else out
+
+
+def unit_choices(dimension, current=None):
+    '''The units a field of this dimension can be written in, for a unit drop-down.
+
+    Nothing here is a second unit table. The candidates are pyH2A's own `DIMENSIONS`,
+    substituted word for word into the declared dimension the way `dimension_base_unit`
+    does it, and a candidate is kept only if pyH2A's `Quantity` (via `unit_dimension`)
+    agrees it has the same dimension as `dimension_base_unit` of the declaration. So a
+    compound like `mass / energy` or `1/temperature_diff` needs no parser of its own.
+
+    Dimensionless returns an empty list (the UI shows a dash). The unit already in the
+    file is kept, first, so an off-dimension unit stays visible instead of changing.
+    '''
+
+    out = list(_unit_choices(dimension or ''))
+    if current and current not in ('-', '') and current not in out:
+        out.insert(0, current)
+    return out
+
+
+@functools.lru_cache(maxsize=None)
+def _unit_choices(dimension):
+    target = unit_dimension(dimension_base_unit(dimension))
+    if target is None or target == unit_dimension('-'):
+        return ()
+    words = _DIMENSION_WORD.findall(dimension)
+    if not all(word in DIMENSIONS for word in words):
+        return ()
+    options = [[unit for unit in DIMENSIONS[word]['conversions'] if '_per_' not in unit]
+               for word in words]
+    if len(options) > 1:
+        options[0] = options[0][:4]          # keep a compound list short enough to scan
+    choices = []
+    for combo in itertools.product(*options):
+        units = iter(combo)
+        candidate = _DIMENSION_WORD.sub(lambda _: next(units), dimension)
+        candidate = re.sub(r'\s*/\s*', '/', candidate).strip()
+        if unit_dimension(candidate) == target and candidate not in choices:
+            choices.append(candidate)
+    return tuple(choices)
+
+
+_DIMENSION_WORD = re.compile(r'[A-Za-z_][A-Za-z_0-9]*')
 
 
 WILDCARD = '<...>'
