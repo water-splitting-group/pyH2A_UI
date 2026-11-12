@@ -14,7 +14,7 @@ import {
   annual, annualHead, calendar, decomposition, decompositionHead,
 } from './figures.js';
 import { highlight } from './highlight.js';
-import { bounds, clip, cost, escape, ms, num, spark, value } from './format.js';
+import { bounds, clip, cost, escape, ms, spark, value } from './format.js';
 import { coach, firstVisit, markVisited, refuse, startTour, welcome, wireChooserExtras } from './welcome.js';
 
 const state = {
@@ -648,9 +648,9 @@ function renderTable(table) {
       <h3>${escape(table.table)}</h3>
       <span class="fill"></span>
       <span class="note">${sectionCount(table)}</span>
-      ${TABLE_STYLE ? `<span class="tog">${open ? 'collapse' : 'expand'}</span>` : ''}
+      <span class="tog">${open ? 'collapse' : 'expand'}</span>
     </div>
-    ${open && TABLE_STYLE ? styledColumnHead() : ''}
+    ${open && (table.to_enter || table.problems) ? columnHead() : ''}
     ${open ? table.fields.map((field, index) => renderField(field, index)).join('') : ''}
   </div>`;
 }
@@ -693,13 +693,11 @@ function renderField(field, index) {
   const computed = field.state === 'computed'
     || (field.state === 'unevaluated' && !authored);
   const equation = Boolean(field.path.text && field.path.text !== 'None');
-  if (TABLE_STYLE && !computed) return renderStyledField(field, index, equation, waiting, bad);
+  if (!computed) return renderInputRow(field, index, equation, waiting, bad);
 
   const meta = fieldMeta(field);
 
-  return `<div class="field ${waiting ? 'waiting' : ''} ${bad ? 'bad' : ''}
-      ${computed ? 'computed' : ''} ${equation ? 'eqn' : ''}
-      ${field.state === 'missing' ? 'absent' : ''}"
+  return `<div class="field computed ${bad ? 'bad' : ''}"
       data-table="${escape(field.table)}"
       data-row="${escape(field.row)}"
       data-col="${escape(field.column)}">
@@ -707,10 +705,8 @@ function renderField(field, index) {
     <span class="label">
       <span class="n" title="${escape(`${field.table} › ${field.row}`)}">${escape(field.label)}</span>
       <span class="fill"></span>
-      ${!computed && !equation && field.path.column
-        ? '<button class="add-path" data-add-path>+ bind a path</button>' : ''}
     </span>
-    ${equation ? renderEquation(field) : renderPlain(field, computed, waiting)}
+    ${computedValue(field)}
     ${declared.description ? `<div class="desc">${escape(declared.description)}</div>` : ''}
     ${meta ? `<div class="meta">${meta}</div>` : ''}
     ${field.problems.map(renderProblem).join('')}
@@ -741,26 +737,19 @@ function valueInput(field, waiting) {
       placeholder="${waiting ? 'required' : ''}">`;
 }
 
-/*
- * Table-layout prototypes from the UI review (?table=A … ?table=E). Every row gets the
- * same three controls — value, path (multiplier), unit — and only their arrangement
- * changes between styles. Unit is a drop-down of the units pyH2A knows for the declared
- * dimension; dimensionless rows show a fixed dash. Without ?table the app is unchanged.
- */
-const TABLE_STYLE = (() => {
-  const style = (new URLSearchParams(location.search).get('table') || '').toUpperCase();
-  return 'ABCDE'.includes(style) && style.length === 1 ? style : '';
-})();
-
-function styledColumnHead() {
-  const labels = '<span class="lbl">value</span><span></span><span class="lbl">path (multiplier)</span><span class="lbl">unit</span>';
-  if (TABLE_STYLE === 'A') return `<div class="tv-head tv-A"><span></span><span></span><div class="ctl">${labels}</div></div>`;
-  if (TABLE_STYLE === 'C') return `<div class="tv-head tv-C"><span></span><span class="lbl">parameter</span>${labels}<span></span></div>`;
-  if (TABLE_STYLE === 'D') return `<div class="tv-head tv-D"><div class="ctl">${labels}</div></div>`;
-  return '';
+/* The column labels over a table's input rows: parameter, value, × path, unit. */
+function columnHead() {
+  return `<div class="tv-head"><span></span><span class="lbl">parameter</span>
+    <span class="lbl">value</span><span></span><span class="lbl">path (multiplier)</span>
+    <span class="lbl">unit</span><span></span></div>`;
 }
 
-function styledControls(field, equation, waiting) {
+/*
+ * The controls of one input row. The unit is a drop-down of the units pyH2A knows for
+ * the declared dimension (`unit.choices`); a dimensionless row shows a fixed dash. A row
+ * with a path shows the product it produces.
+ */
+function rowControls(field, equation, waiting) {
   const name = escape(field.label);
   const pathText = equation ? field.path.text : '';
   const path = field.path.column
@@ -788,109 +777,39 @@ function styledControls(field, equation, waiting) {
   return { value: valueInput(field, waiting), path, unit, result, times: '<span class="times">×</span>' };
 }
 
-function renderStyledField(field, index, equation, waiting, bad) {
+/*
+ * One editable row: number, parameter, value, × path, unit and an i button on one line.
+ * The description, meta line and input-file position open under it from the i button.
+ */
+function renderInputRow(field, index, equation, waiting, bad) {
   const declared = field.declared;
-  const c = styledControls(field, equation, waiting);
-  const idx = `<span class="idx">${String(index + 1).padStart(2, '0')}</span>`;
+  const c = rowControls(field, equation, waiting);
   const meta = fieldMeta(field)
     + `<span class="pos">${escape(field.table)} <i>›</i> ${escape(field.row)} <i>›</i> ${escape(field.column)}</span>`;
   const desc = declared.description ? `<div class="desc">${escape(declared.description)}</div>` : '';
-  const info = `${desc}<div class="meta">${meta}</div>`;
-  const problems = field.problems.map(renderProblem).join('');
-  const name = `<span class="label"><span class="n">${escape(field.label)}</span></span>`;
-  const lab = (text, control) => `<label><span class="lbl">${text}</span>${control}</label>`;
-  let body;
-  switch (TABLE_STYLE) {
-    case 'A':
-      body = `${idx}<div class="about">${name}${info}</div>
-        <div class="ctl">${c.value}${c.times}${c.path}${c.unit}${c.result}</div>${problems}`;
-      break;
-    case 'B':
-      body = `${idx}<div class="main"><div class="top">${name}<span class="fill"></span>
-        ${lab('value', c.value)}${c.times}${lab('path', c.path)}${lab('unit', c.unit)}</div>
-        ${c.result}<div class="info">${info}</div>${problems}</div>`;
-      break;
-    case 'C':
-      body = `${idx}${name}${c.value}${c.times}${c.path}${c.unit}
-        <button class="more" type="button" data-more aria-expanded="false" title="description">i</button>
-        <div class="detail" hidden>${info}</div>${c.result}${problems}`;
-      break;
-    case 'D':
-      body = `${idx}<div class="main"><div class="line1">${name}
-        <div class="ctl">${c.value}${c.times}${c.path}${c.unit}</div></div>${c.result}
-        <div class="line2">${info}</div>${problems}</div>`;
-      break;
-    default:
-      body = `<div class="hd">${idx}${name}</div>${info}
-        <div class="bar">${lab('value', c.value)}${c.times}${lab('path', c.path)}${lab('unit', c.unit)}</div>${c.result}${problems}`;
-  }
-  return `<div class="field tv tv-${TABLE_STYLE} ${waiting ? 'waiting' : ''} ${bad ? 'bad' : ''}
+  return `<div class="field tv ${waiting ? 'waiting' : ''} ${bad ? 'bad' : ''}
       ${field.state === 'missing' ? 'absent' : ''}"
       data-table="${escape(field.table)}" data-row="${escape(field.row)}"
-      data-col="${escape(field.column)}">${body}</div>`;
-}
-
-function renderPlain(field, computed, waiting) {
-  if (computed) {
-    // A step that never ran has no value to show and no business offering an input
-    // box: the value was not missing, it was never computed. An earlier version drew
-    // an empty field captioned `required` for every upstream value in a failed run.
-    return field.state === 'unevaluated'
-      ? '<span class="value-cell pending">not computed — the run stopped earlier</span>'
-      : `<span class="value-cell">${value(field.live)}</span>`;
-  }
-  return `${valueInput(field, waiting)}
-    ${field.unit.column
-      ? `<input class="unit" data-unit aria-label="${escape(`${field.label} unit`)}"
-           placeholder="-" title="${escape(field.unit.text ?? '')}"
-           value="${escape(field.unit.text ?? '')}">`
-      : `<span class="idx">${escape(field.unit.text ?? '')}</span>`}`;
+      data-col="${escape(field.column)}">
+    <span class="idx">${String(index + 1).padStart(2, '0')}</span>
+    <span class="label"><span class="n">${escape(field.label)}</span></span>
+    ${c.value}${c.times}${c.path}${c.unit}
+    <button class="more" type="button" data-more aria-expanded="false" title="description">i</button>
+    <div class="detail" hidden>${desc}<div class="meta">${meta}</div></div>
+    ${c.result}${field.problems.map(renderProblem).join('')}
+  </div>`;
 }
 
 /*
- * A row with a `Path` is a product, and it is drawn as the equation it is — on ONE
- * line, operands adjacent to their operator:
- *
- *     [784] per kW   ×   {Electrolyzer > Nominal power > Value, kW} 5,500 kW   =   4,312,000 USD
- *
- * Two things this fixes. The operands used to sit four lines apart with two lines of
- * prose between them, so `×` had no visible left operand. And the unit chip beside the
- * multiplier showed the unit of the *result*: `784 [USD]` for a number that is USD per
- * kW, and `1.5 [kW]` for a dimensionless scale factor. An engineer checks units first,
- * and every unit-bearing number in the app's most load-bearing table was mislabelled by
- * the plant's own scale factor.
- *
- * The multiplier's own unit is stated as `per <requested unit>` — derived from the
- * reference, not guessed — or omitted when the row's unit and the reference's unit
- * match, which is the case where the multiplier really is dimensionless.
+ * A computed row's value. A step that never ran has no value to show and no business
+ * offering an input box: the value was not missing, it was never computed. An earlier
+ * version drew an empty field captioned `required` for every upstream value in a
+ * failed run.
  */
-function renderEquation(field) {
-  const path = field.path;
-  const per = path.requested_unit && path.requested_unit !== '-'
-    && field.unit.text && field.unit.text !== path.requested_unit
-    ? `<span class="per">per ${escape(path.requested_unit)}</span>` : '';
-
-  const resolved = path.as_requested !== undefined && path.as_requested !== null
-    ? `<span class="q">${num(path.as_requested)}</span>` +
-      `<span class="u">${escape(path.requested_unit)}</span>`
-    : '<span class="u">unresolved</span>';
-
-  const product = field.after
-    ? value(field.after)
-    : '<span class="u">not computed</span>';
-
-  return `<div class="eq">
-    <input class="cell mult" data-cell aria-label="${escape(`${field.label} multiplier`)}"
-      value="${escape(field.text ?? '')}">${per}
-    <span class="op">×</span>
-    <span class="operand">
-      <input data-path spellcheck="false" aria-label="${escape(`${field.label} reference`)}"
-        value="${escape(path.text)}">
-      <span class="resolved">${resolved}</span>
-    </span>
-    <span class="op">=</span>
-    <span class="product">${product}</span>
-  </div>`;
+function computedValue(field) {
+  return field.state === 'unevaluated'
+    ? '<span class="value-cell pending">not computed — the run stopped earlier</span>'
+    : `<span class="value-cell">${value(field.live)}</span>`;
 }
 
 function renderProblem(problem) {
@@ -1230,16 +1149,6 @@ function wireNeeds() {
       const detail = button.parentElement.querySelector('.detail');
       detail.hidden = !detail.hidden;
       button.setAttribute('aria-expanded', String(!detail.hidden));
-    };
-  });
-
-  host.querySelectorAll('[data-add-path]').forEach((button) => {
-    button.onclick = () => {
-      const field = button.closest('.field');
-      const { table, row, col: column } = field.dataset;
-      armBinding(table, row, pathColumnOf(table, row, column), 'path');
-      el('find').focus();
-      toast('pick a value on the right to bind it here');
     };
   });
 
