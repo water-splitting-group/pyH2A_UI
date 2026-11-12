@@ -777,35 +777,61 @@ function valueInput(field, waiting) {
 }
 
 /*
+ * Where an input's dimension, range and `optional` are shown. Chosen with ?table= in the
+ * address; without it, A.
+ *   A  dimension and range are columns; an optional row is shaded and tagged.
+ *   B  the table holds value, path and unit only; dimension, range and optional are
+ *      inside the description that the i button opens.
+ *   C  dimension and range sit on a small line under the row's inputs, always shown;
+ *      optional is a tag beside the parameter name.
+ *   D  like B, but the description opens with a small table: Dimension, Range and
+ *      Optional (True / False) as columns, the value column(s) as rows.
+ */
+const TABLE_VARIANT = (() => {
+  const chosen = (new URLSearchParams(location.search).get('table') || '').toUpperCase();
+  return ['A', 'B', 'C', 'D'].includes(chosen) ? chosen : 'A';
+})();
+const FACT_COLUMNS = TABLE_VARIANT === 'A';
+
+/*
  * The column labels over a table's input rows. Every cell has a fixed width so the box
  * scrolls sideways instead of squeezing; the parameter column stays put while it does.
  */
-const SUB_COLUMNS = ['76px', '12px', '120px', '84px', '100px', '90px'];
+const SUB_COLUMNS = FACT_COLUMNS
+  ? ['76px', '12px', '120px', '84px', '100px', '90px']
+  : ['76px', '12px', '120px', '84px'];
 const SUB_LABELS = '<span class="lbl">value</span><span></span><span class="lbl">path (multiplier)</span>'
-  + '<span class="lbl">unit</span><span class="lbl">dimension</span><span class="lbl">range</span>';
+  + '<span class="lbl">unit</span>'
+  + (FACT_COLUMNS ? '<span class="lbl">dimension</span><span class="lbl">range</span>' : '');
 
-function columnHead() {
-  return `<div class="tv-head"><span></span><span class="lbl p">parameter</span>${SUB_LABELS}</div>`;
+function rowColumns(groupCount) {
+  return `22px minmax(190px, 1fr) ${Array(groupCount).fill(SUB_COLUMNS.join(' ')).join(' ')}`;
 }
 
-function groupedColumns(groups) {
-  return `22px minmax(190px, 1fr) ${groups.map(() => SUB_COLUMNS.join(' ')).join(' ')}`;
+function columnHead() {
+  return `<div class="tv-head" style="grid-template-columns: ${rowColumns(1)}">
+    <span></span><span class="lbl p">parameter</span>${SUB_LABELS}</div>`;
 }
 
 function groupedHead(groups) {
-  const style = `style="grid-template-columns: ${groupedColumns(groups)}"`;
-  return `<div class="tv-head grouped" ${style}>
+  const span = `style="grid-column: span ${SUB_COLUMNS.length}"`;
+  return `<div class="tv-head grouped" style="grid-template-columns: ${rowColumns(groups.length)}">
     <span></span><span class="lbl p">parameter</span>
-    ${groups.map((group) => `<span class="grp">${escape(group.replace(/_/g, ' '))}</span>`).join('')}
+    ${groups.map((group) => `<span class="grp" ${span}>${escape(group.replace(/_/g, ' '))}</span>`).join('')}
     <span class="i"></span><span class="p"></span>${groups.map(() => SUB_LABELS).join('')}
   </div>`;
 }
 
+/* A field's dimension and range, as text. */
+function facts(field) {
+  return { dimension: field.declared.dimension || '—', range: bounds(field.bounds_shown) || '—' };
+}
+
 /*
- * The cells of one value column: value, × path, unit, dimension and range. The unit is a
- * drop-down of the units pyH2A knows for the declared dimension (`unit.choices`); a
- * dimensionless value shows a fixed dash. A table without a Path column shows an empty
- * "× 1" box.
+ * The cells of one value column: value, × path, unit and, in A, dimension and range. The
+ * unit is a drop-down of the units pyH2A knows for the declared dimension
+ * (`unit.choices`); a dimensionless value shows a fixed dash. A table without a Path
+ * column shows an empty "× 1" box.
  */
 function valueCells(field, waiting) {
   const name = escape(field.label);
@@ -828,10 +854,39 @@ function valueCells(field, waiting) {
   } else {
     unit = `<span class="unit fixed">${escape(unitText)}</span>`;
   }
-  const range = bounds(field.bounds_shown);
-  return `${valueInput(field, waiting)}<span class="times">×</span>${path}${unit}
-    <span class="dim" title="${escape(dimension || '')}">${escape(dimension || '—')}</span>
-    <span class="rng">${range || '—'}</span>`;
+  const { dimension: dim, range } = facts(field);
+  const columns = FACT_COLUMNS
+    ? `<span class="dim" title="${escape(dim)}">${escape(dim)}</span><span class="rng">${range}</span>` : '';
+  return `${valueInput(field, waiting)}<span class="times">×</span>${path}${unit}${columns}`;
+}
+
+/* B: dimension and range as a line inside the description. */
+function factsLine(field, label = '') {
+  const { dimension, range } = facts(field);
+  return `<div class="facts-in">${label ? `<b>${escape(label)}</b> ` : ''}`
+    + `<span>dimension <b>${escape(dimension)}</b></span><span>range <b>${range}</b></span></div>`;
+}
+
+/*
+ * D: dimension, range and optional as a small table. `rows` is [[label, field], …]; the
+ * label column is left out for a single value column.
+ */
+function factsTable(rows) {
+  const labelled = rows.some(([label]) => label);
+  const head = `${labelled ? '<th></th>' : ''}<th>Dimension</th><th>Range</th><th>Optional</th>`;
+  const body = rows.map(([label, field]) => {
+    const { dimension, range } = facts(field);
+    return `<tr>${labelled ? `<th>${escape(label)}</th>` : ''}<td>${escape(dimension)}</td>`
+      + `<td>${range}</td><td>${field.declared.optional ? 'True' : 'False'}</td></tr>`;
+  }).join('');
+  return `<table class="facts-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+/* C: dimension and range on a small line under one value column's cells. */
+function factsUnder(field, column) {
+  const { dimension, range } = facts(field);
+  return `<div class="facts-under" style="grid-column: ${column} / span ${SUB_COLUMNS.length}">`
+    + `<span title="${escape(dimension)}">${escape(dimension)}</span><span>${range}</span></div>`;
 }
 
 function resultChip(field) {
@@ -841,22 +896,40 @@ function resultChip(field) {
 const OPTIONAL_TAG = '<span class="opt-tag">optional</span>';
 const MORE_BUTTON = '<button class="more" type="button" data-more aria-expanded="false" title="description">i</button>';
 
+/* The parameter cell: name, optional tag in C, and the i button. */
+function nameCell(name, optional) {
+  return `<span class="label"><span class="n">${escape(name)}</span>`
+    + `${TABLE_VARIANT === 'C' && optional ? OPTIONAL_TAG : ''}${MORE_BUTTON}</span>`;
+}
+
+/*
+ * The head of a description: the optional tag in A and B, the facts line in B, the facts
+ * table in D (which says True / False itself, so no tag).
+ */
+function detailHead(optional, factLines, rows) {
+  if (TABLE_VARIANT === 'D') return factsTable(rows);
+  return (TABLE_VARIANT !== 'C' && optional ? OPTIONAL_TAG : '')
+    + (TABLE_VARIANT === 'B' ? factLines : '');
+}
+
 /*
  * One editable row: number, parameter, the value cells and an i button on one line. The
- * description and the rest of the meta line open under it from the i button. An optional
- * input is shaded, and says so with a tag at the head of its description.
+ * description and the rest of the meta line open under it from the i button.
  */
 function renderInputRow(field, index, waiting, bad) {
   const declared = field.declared;
   const meta = fieldMeta(field, { dimension: false, range: false, optional: false });
-  return `<div class="field tv ${declared.optional ? 'optional' : ''} ${waiting ? 'waiting' : ''}
+  const shaded = TABLE_VARIANT === 'A' && declared.optional;
+  return `<div class="field tv ${shaded ? 'optional' : ''} ${waiting ? 'waiting' : ''}
       ${bad ? 'bad' : ''} ${field.state === 'missing' ? 'absent' : ''}"
+      style="grid-template-columns: ${rowColumns(1)}"
       data-table="${escape(field.table)}" data-row="${escape(field.row)}"
       data-col="${escape(field.column)}">
     <span class="idx">${String(index + 1).padStart(2, '0')}</span>
-    <span class="label"><span class="n">${escape(field.label)}</span>${MORE_BUTTON}</span>
+    ${nameCell(field.label, declared.optional)}
     ${valueCells(field, waiting)}
-    <div class="detail" hidden>${declared.optional ? OPTIONAL_TAG : ''}
+    ${TABLE_VARIANT === 'C' ? factsUnder(field, 3) : ''}
+    <div class="detail" hidden>${detailHead(declared.optional, factsLine(field), [['', field]])}
       ${declared.description ? `<div class="desc">${escape(declared.description)}</div>` : ''}
       ${meta ? `<div class="meta">${meta}</div>` : ''}</div>
     ${resultChip(field)}${field.problems.map(renderProblem).join('')}
@@ -875,33 +948,38 @@ function groupedRows(table, editable, groups) {
     if (!rows.has(field.row)) rows.set(field.row, new Map());
     rows.get(field.row).set(groupOf(field), field);
   }
+  const label = (field) => groupOf(field).replace(/_/g, ' ');
   return [...rows.entries()].map(([row, byGroup], index) => {
     const fields = [...byGroup.values()];
     const optional = fields.every((field) => field.declared.optional);
-    const cells = groups.map((group) => {
+    const cells = groups.map((group, position) => {
       const field = byGroup.get(group);
       if (!field) return SUB_COLUMNS.map(() => '<span></span>').join('');
       const waiting = isWaiting(field);
+      const under = TABLE_VARIANT === 'C' ? factsUnder(field, 3 + position * SUB_COLUMNS.length) : '';
       return `<div class="field tv-cell ${waiting ? 'waiting' : ''} ${field.problems.length ? 'bad' : ''}
           ${field.state === 'missing' ? 'absent' : ''}"
           data-table="${escape(field.table)}" data-row="${escape(field.row)}"
-          data-col="${escape(field.column)}">${valueCells(field, waiting)}
+          data-col="${escape(field.column)}">${valueCells(field, waiting)}${under}
         ${resultChip(field)}${field.problems.map(renderProblem).join('')}</div>`;
     }).join('');
     const described = fields.filter((field) => field.declared.description);
     const shared = new Set(described.map((field) => field.declared.description)).size === 1;
     const notes = shared
       ? `<div class="desc">${escape(described[0].declared.description)}</div>`
-      : described.map((field) => `<div class="desc"><b>${escape(groupOf(field).replace(/_/g, ' '))}</b> — `
+      : described.map((field) => `<div class="desc"><b>${escape(label(field))}</b> — `
         + `${escape(field.declared.description)}</div>`).join('');
     const meta = fieldMeta(fields[0], { dimension: false, range: false, optional: false, column: false });
-    return `<div class="field tv grouped ${optional ? 'optional' : ''}"
-        style="grid-template-columns: ${groupedColumns(groups)}"
+    const shaded = TABLE_VARIANT === 'A' && optional;
+    return `<div class="field tv grouped ${shaded ? 'optional' : ''}"
+        style="grid-template-columns: ${rowColumns(groups.length)}"
         data-table="${escape(table.table)}" data-row="${escape(row)}" data-col="${escape(fields[0].column)}">
       <span class="idx">${String(index + 1).padStart(2, '0')}</span>
-      <span class="label"><span class="n">${escape(row)}</span>${MORE_BUTTON}</span>
+      ${nameCell(row, optional)}
       ${cells}
-      <div class="detail" hidden>${optional ? OPTIONAL_TAG : ''}${notes}
+      <div class="detail" hidden>${detailHead(optional,
+        fields.map((field) => factsLine(field, label(field))).join(''),
+        fields.map((field) => [label(field), field]))}${notes}
         ${meta ? `<div class="meta">${meta}</div>` : ''}</div>
     </div>`;
   }).join('');

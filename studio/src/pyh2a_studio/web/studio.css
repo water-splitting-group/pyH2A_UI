@@ -1689,14 +1689,13 @@ input[type="checkbox"] { accent-color: var(--ink); }
 /* `width: max-content` lets a row be as wide as its cells; the minimum keeps a row that
    fits from stopping short of the table's right edge. */
 .tv-head, .field.tv {
-  display: grid; grid-template-columns: 22px minmax(190px, 1fr) 76px 12px 120px 84px 100px 90px;
-  column-gap: 5px; align-items: center; width: max-content; min-width: 100%;
+  display: grid; column-gap: 5px; align-items: center; width: max-content; min-width: 100%;
 }
 .tv-head { padding: 5px 0 4px; background: var(--paper-2); border-bottom: 1px solid var(--rule-firm); }
 .tv-head .lbl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--ash); }
 .tv-head.grouped { row-gap: 3px; }
-.tv-head .grp { grid-column: span 6; font-family: var(--mono); font-size: 10px; font-weight: 600;
+.tv-head .grp { font-family: var(--mono); font-size: 10px; font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink);
   border-bottom: 1.5px solid var(--ink); padding-bottom: 2px; }
 .field.tv { padding: 5px 0; background: var(--paper); }
@@ -1740,6 +1739,26 @@ input[type="checkbox"] { accent-color: var(--ink); }
   background: var(--dark-2); color: var(--dark-ink); border-radius: 2px; padding: 2px 8px; }
 .tv .problem { margin-top: 6px; }
 
+/* B: dimension and range inside the description */
+.tv .facts-in { display: flex; flex-wrap: wrap; gap: 2px var(--sp-3); margin-bottom: 4px;
+  font-family: var(--mono); font-size: 10px; color: var(--ash); }
+.tv .facts-in b { font-weight: 500; color: var(--graphite); }
+
+/* D: dimension, range and optional as a small table inside the description */
+.tv .facts-table { border-collapse: collapse; margin-bottom: 6px; font-family: var(--mono); font-size: 10.5px; }
+.tv .facts-table th, .tv .facts-table td { text-align: left; padding: 3px 14px 3px 0; border-bottom: 1px solid var(--rule); }
+.tv .facts-table thead th { font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ash); border-bottom-color: var(--rule-firm); }
+.tv .facts-table tbody th { font-weight: 600; color: var(--ink); }
+.tv .facts-table td { color: var(--graphite); }
+
+/* C: dimension and range on a small line under the inputs, always shown */
+.tv .facts-under { grid-row: 2; display: flex; gap: var(--sp-3); padding: 2px 2px 0;
+  font-family: var(--mono); font-size: 9.5px; color: var(--graphite); white-space: nowrap; overflow: hidden; }
+.tv .facts-under span { overflow: hidden; text-overflow: ellipsis; }
+.tv .facts-under span + span { color: var(--ash); }
+.tv .label .opt-tag { margin: 0; flex: none; }
+
 /* optional: a shaded row, and a tag of its own at the head of the description */
 .field.tv.optional { background: var(--paper-2); }
 .field.tv.optional .n { color: var(--graphite); }
@@ -1750,8 +1769,8 @@ input[type="checkbox"] { accent-color: var(--ink); }
 
 /* On a phone the old row layout's placement rules must not reach these rows. */
 @media (max-width: 900px) {
-  .field.tv > :not(.detail):not(.problem):not(.tv-result),
-  .field.tv-cell > :not(.problem):not(.tv-result) { grid-column: auto; }
+  .field.tv > :not(.detail):not(.problem):not(.tv-result):not(.facts-under),
+  .field.tv-cell > :not(.problem):not(.tv-result):not(.facts-under) { grid-column: auto; }
   .field.tv > .detail, .field.tv > .problem, .field.tv > .tv-result,
   .field.tv-cell > .problem, .field.tv-cell > .tv-result { grid-column: 2 / -1; }
   .tv .detail { max-width: 300px; }
