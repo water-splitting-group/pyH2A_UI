@@ -444,7 +444,7 @@ body:has(#firstedits:not([hidden])) #sheet { height: calc(100vh - 46px - 29px); 
 }
 .field .meta b { font-weight: 500; color: var(--graphite); }
 
-input.cell, input.unit {
+input.cell, input.unit, select.unit, input.path {
   font-family: var(--mono);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
@@ -456,11 +456,11 @@ input.cell, input.unit {
   color: var(--ink);
   width: 100%;
 }
-input.unit { text-align: left; font-size: 11.5px; color: var(--graphite); }
+input.unit, select.unit, input.path { text-align: left; font-size: 11.5px; color: var(--graphite); }
 /* `outline: none` here out-specified the shared `:focus-visible` rule below (0-2-1
    beats 0-1-0), so the one ring the app designed never painted on the 785 controls that
    need it most. The border change stays; it is a real second signal. */
-input.cell:focus, input.unit:focus {
+input.cell:focus, input.unit:focus, select.unit:focus, input.path:focus {
   border-color: var(--prussian);
   box-shadow: 0 0 0 2px rgba(36, 54, 91, 0.12);
 }
@@ -477,7 +477,7 @@ input.cell:focus, input.unit:focus {
 input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
 
 .field.waiting input.cell { border-color: var(--sodium); background: #FDF8EA; }
-.field.bad input.cell, .field.bad input.unit { border-color: var(--strontium); background: #FCF1F0; }
+.field.bad input.cell, .field.bad input.unit, .field.bad select.unit { border-color: var(--strontium); background: #FCF1F0; }
 .field.computed { opacity: 0.92; }
 .field.computed .value-cell {
   grid-column: 2 / 5;
@@ -1746,3 +1746,96 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
 /* The one control the browser was still drawing itself. A palette with no blue in it
    had a system-blue checkbox on the first screen anybody sees. */
 input[type="checkbox"] { accent-color: var(--ink); }
+
+/* ============================================================ table-layout prototypes
+   Only active with ?table=A … ?table=E. Every rule is scoped to .tv / .tv-head / .tog, so
+   without the parameter the worksheet renders exactly as before. */
+.tbl-head .tog {
+  font-family: var(--mono); font-size: 10px; color: var(--prussian);
+  border: 1px solid var(--rule-firm); border-radius: 9px; padding: 0 8px; background: var(--bench);
+}
+.tbl-head:has(.tog):hover { background: var(--paper-2); }
+.field.tv { display: block; align-items: stretch; }
+.tv.tv-C { align-items: center; }
+.tv .meta .pos { color: var(--prussian); }
+.tv .meta .pos i { font-style: normal; color: var(--ash); }
+.tv-head .lbl, .tv .lbl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ash); }
+.tv input.cell, .tv input.path, .tv select.unit, .tv .unit.fixed, .tv .dash { height: 29px; min-width: 0; }
+.tv .unit.fixed { border: 1px solid var(--rule-firm); border-radius: 2px; padding: 4px 8px; }
+.tv input.path { font-size: 11px; color: var(--prussian); text-align: left; }
+.tv input.path::placeholder { color: var(--ash); font-style: italic; }
+.tv input.path:disabled { background: var(--paper-2); border-style: dashed; }
+.tv select.unit { cursor: pointer; padding: 4px 2px 4px 6px; }
+.tv .unit.fixed { display: flex; align-items: center; font-size: 12px; color: var(--graphite); background: var(--paper-2); }
+.tv .dash { display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--rule-firm); border-radius: 2px; background: var(--paper-2);
+  font-family: var(--mono); font-size: 14px; color: var(--ash); cursor: default; }
+.tv .times { font-family: var(--mono); color: var(--graphite); text-align: center; }
+.tv .tv-result { display: inline-block; margin-top: 5px; font-family: var(--mono); font-size: 12px;
+  background: var(--dark-2); color: var(--dark-ink); border-radius: 2px; padding: 2px 8px; }
+.tv .problem { margin-top: 6px; }
+
+/* A · input well: description left, inputs in a recessed well on the right */
+.tv-head.tv-A, .tv.tv-A { display: grid; grid-template-columns: 22px minmax(0, 1fr) 300px; column-gap: var(--sp-2); }
+.tv-head.tv-A { padding: 4px 0; border-bottom: 1px solid var(--rule); }
+.tv-head.tv-A .ctl, .tv.tv-A .ctl { display: grid; grid-template-columns: 70px 12px minmax(0, 1fr) 78px; gap: 5px; align-items: center; }
+.tv-head.tv-A .ctl { padding: 0 8px; }
+.tv.tv-A { padding: 0; }
+.tv.tv-A .idx { padding-top: 11px; }
+.tv.tv-A .about { padding: 9px 10px 9px 0; min-width: 0; }
+.tv.tv-A .ctl { background: var(--paper-2); border-left: 2px solid var(--rule-firm); padding: 9px 8px; align-content: center; }
+.tv.tv-A:focus-within .ctl { border-left-color: var(--prussian); }
+.tv.tv-A .ctl .tv-result { grid-column: 1 / -1; justify-self: end; }
+.tv.tv-A .problem { grid-column: 2 / 4; padding-bottom: 8px; }
+
+/* B · labelled inline: today's line with a label over each box, notes underneath */
+.tv.tv-B { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: var(--sp-2); padding: 9px 0; }
+.tv.tv-B .idx { padding-top: 21px; }
+.tv.tv-B .top { display: grid; grid-template-columns: minmax(0, 1fr) 70px 12px 120px 78px; gap: 5px; align-items: end; }
+.tv.tv-B .top .n { padding-bottom: 6px; }
+.tv.tv-B .top .fill { display: none; }
+.tv.tv-B .top label { display: flex; flex-direction: column; gap: 2px; }
+.tv.tv-B .top .times { padding-bottom: 6px; }
+.tv.tv-B .info { margin-top: 7px; padding: 3px 0 1px 10px; border-left: 2px solid var(--rule); }
+
+/* C · grid table: one line per row, notes behind the i button */
+.tv-head.tv-C, .tv.tv-C { display: grid; grid-template-columns: 22px minmax(0, 1fr) 70px 12px 120px 78px 22px;
+  column-gap: 5px; align-items: center; }
+.tv-head.tv-C { padding: 5px 0 4px; background: var(--paper-2); border-bottom: 1px solid var(--rule-firm); }
+.tv.tv-C { padding: 5px 0; }
+.tv.tv-C .more { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--rule-firm);
+  background: var(--bench); color: var(--prussian); font-family: var(--serif); font-style: italic;
+  font-size: 11px; line-height: 1; cursor: pointer; padding: 0; }
+.tv.tv-C .more[aria-expanded="true"] { background: var(--prussian); color: var(--paper); }
+.tv.tv-C .detail, .tv.tv-C .problem, .tv.tv-C .tv-result { grid-column: 2 / -1; }
+.tv.tv-C .detail { background: #F7F5EF; margin-top: 6px; padding: 6px 8px; border-radius: 2px; }
+.tv.tv-C .detail[hidden] { display: none; }
+.tv.tv-C .tv-result { justify-self: end; }
+
+/* D · joined input: value × path unit as one control, notes on a quiet second line */
+.tv-head.tv-D { display: flex; justify-content: flex-end; padding: 4px 0; border-bottom: 1px solid var(--rule); }
+.tv-head.tv-D .ctl, .tv.tv-D .ctl { display: grid; grid-template-columns: 74px 22px 124px 80px; }
+.tv-head.tv-D .lbl { padding-left: 8px; }
+.tv.tv-D { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: var(--sp-2); padding: 9px 0; }
+.tv.tv-D .idx { padding-top: 8px; }
+.tv.tv-D .line1 { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; }
+.tv.tv-D .line1 .n { flex: 1 1 140px; }
+.tv.tv-D .ctl { border: 1px solid var(--rule-firm); border-radius: 3px; background: var(--bench); overflow: hidden; }
+.tv.tv-D .ctl:focus-within { border-color: var(--prussian); box-shadow: 0 0 0 2px rgba(36, 54, 91, 0.12); }
+.tv.tv-D .ctl > * { border: 0; border-radius: 0; border-right: 1px solid var(--rule); box-shadow: none; }
+.tv.tv-D .ctl > *:last-child { border-right: 0; }
+.tv.tv-D .ctl .times { background: var(--paper-2); display: flex; align-items: center; justify-content: center; }
+.tv.tv-D .line2 { margin-top: 5px; }
+
+/* E · card: notes on top, a labelled input bar underneath */
+.tv.tv-E { border: 1px solid var(--rule-firm); border-radius: 4px; background: var(--bench);
+  margin-top: 8px; padding: 0; overflow: hidden; }
+.tv.tv-E .hd { display: flex; gap: 10px; align-items: baseline; padding: 9px 12px 0; }
+.tv.tv-E > .desc, .tv.tv-E > .meta { padding: 0 12px 0 40px; }
+.tv.tv-E > .meta { padding-bottom: 9px; }
+.tv.tv-E .bar { display: grid; grid-template-columns: 80px 12px minmax(0, 1fr) 96px; gap: 6px; align-items: end;
+  background: var(--paper-2); border-top: 1px solid var(--rule); padding: 8px 12px; }
+.tv.tv-E .bar label { display: flex; flex-direction: column; gap: 2px; }
+.tv.tv-E .bar .times { padding-bottom: 6px; }
+.tv.tv-E .tv-result, .tv.tv-E .problem { margin: 6px 12px 8px; }

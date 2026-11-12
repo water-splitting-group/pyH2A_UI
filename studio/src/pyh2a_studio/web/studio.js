@@ -648,7 +648,9 @@ function renderTable(table) {
       <h3>${escape(table.table)}</h3>
       <span class="fill"></span>
       <span class="note">${sectionCount(table)}</span>
+      ${TABLE_STYLE ? `<span class="tog">${open ? 'collapse' : 'expand'}</span>` : ''}
     </div>
+    ${open && TABLE_STYLE ? styledColumnHead() : ''}
     ${open ? table.fields.map((field, index) => renderField(field, index)).join('') : ''}
   </div>`;
 }
@@ -691,15 +693,9 @@ function renderField(field, index) {
   const computed = field.state === 'computed'
     || (field.state === 'unevaluated' && !authored);
   const equation = Boolean(field.path.text && field.path.text !== 'None');
+  if (TABLE_STYLE && !computed) return renderStyledField(field, index, equation, waiting, bad);
 
-  const meta = [
-    declared.dimension ? `<span><b>${escape(declared.dimension)}</b></span>` : '',
-    bounds(field.bounds_shown) ? `<span>range <b>${bounds(field.bounds_shown)}</b></span>` : '',
-    declared.optional ? '<span>optional</span>' : '',
-    field.origin && field.origin.includes('~')
-      ? `<span>from <b>${escape(field.origin.split('~').pop())}</b></span>` : '',
-    field.column !== 'Value' ? `<span>column <b>${escape(field.column)}</b></span>` : '',
-  ].filter(Boolean).join('');
+  const meta = fieldMeta(field);
 
   return `<div class="field ${waiting ? 'waiting' : ''} ${bad ? 'bad' : ''}
       ${computed ? 'computed' : ''} ${equation ? 'eqn' : ''}
@@ -721,6 +717,119 @@ function renderField(field, index) {
   </div>`;
 }
 
+/* The meta line under a field: dimension, range, optional, source file, column. */
+function fieldMeta(field) {
+  const declared = field.declared;
+  return [
+    declared.dimension ? `<span><b>${escape(declared.dimension)}</b></span>` : '',
+    bounds(field.bounds_shown) ? `<span>range <b>${bounds(field.bounds_shown)}</b></span>` : '',
+    declared.optional ? '<span>optional</span>' : '',
+    field.origin && field.origin.includes('~')
+      ? `<span>from <b>${escape(field.origin.split('~').pop())}</b></span>` : '',
+    field.column !== 'Value' ? `<span>column <b>${escape(field.column)}</b></span>` : '',
+  ].filter(Boolean).join('');
+}
+
+/* The value box of an editable field. */
+function valueInput(field, waiting) {
+  const numeric = (field.declared.types || []).every((entry) =>
+    entry === 'int' || entry === 'float') && !field.is_reference;
+  return `<input class="cell ${field.is_reference ? 'ref' : ''}" data-cell
+      aria-label="${escape(`${field.table} ${field.label} value`)}"
+      ${numeric ? 'inputmode="decimal"' : ''}
+      value="${escape(field.text ?? '')}"
+      placeholder="${waiting ? 'required' : ''}">`;
+}
+
+/*
+ * Table-layout prototypes from the UI review (?table=A … ?table=E). Every row gets the
+ * same three controls — value, path (multiplier), unit — and only their arrangement
+ * changes between styles. Unit is a drop-down of the units pyH2A knows for the declared
+ * dimension; dimensionless rows show a fixed dash. Without ?table the app is unchanged.
+ */
+const TABLE_STYLE = (() => {
+  const style = (new URLSearchParams(location.search).get('table') || '').toUpperCase();
+  return 'ABCDE'.includes(style) && style.length === 1 ? style : '';
+})();
+
+function styledColumnHead() {
+  const labels = '<span class="lbl">value</span><span></span><span class="lbl">path (multiplier)</span><span class="lbl">unit</span>';
+  if (TABLE_STYLE === 'A') return `<div class="tv-head tv-A"><span></span><span></span><div class="ctl">${labels}</div></div>`;
+  if (TABLE_STYLE === 'C') return `<div class="tv-head tv-C"><span></span><span class="lbl">parameter</span>${labels}<span></span></div>`;
+  if (TABLE_STYLE === 'D') return `<div class="tv-head tv-D"><div class="ctl">${labels}</div></div>`;
+  return '';
+}
+
+function styledControls(field, equation, waiting) {
+  const name = escape(field.label);
+  const pathText = equation ? field.path.text : '';
+  const path = field.path.column
+    ? `<input class="path" data-path spellcheck="false" aria-label="${name} path"
+        placeholder="no path (× 1)" value="${escape(pathText)}">`
+    : `<input class="path" disabled aria-label="${name} path"
+        placeholder="× 1" title="this table has no Path column">`;
+  const unitText = field.unit.text ?? '';
+  const choices = field.unit.choices || [];
+  const dimensionless = field.declared.dimension === 'dimensionless'
+    || (!choices.length && (unitText === '' || unitText === '-'));
+  let unit;
+  if (dimensionless) {
+    unit = `<span class="dash" title="dimensionless — no unit" aria-label="${name} unit: dimensionless">–</span>`;
+  } else if (field.unit.column) {
+    unit = `<select class="unit" data-unit aria-label="${name} unit"
+        title="${escape(field.declared.dimension ? `units of ${field.declared.dimension}` : '')}">
+      ${choices.map((choice) => `<option ${choice === unitText ? 'selected' : ''}>${escape(choice)}</option>`).join('')}
+    </select>`;
+  } else {
+    unit = `<span class="unit fixed">${escape(unitText)}</span>`;
+  }
+  const result = equation && field.after
+    ? `<span class="tv-result">= ${value(field.after)}</span>` : '';
+  return { value: valueInput(field, waiting), path, unit, result, times: '<span class="times">×</span>' };
+}
+
+function renderStyledField(field, index, equation, waiting, bad) {
+  const declared = field.declared;
+  const c = styledControls(field, equation, waiting);
+  const idx = `<span class="idx">${String(index + 1).padStart(2, '0')}</span>`;
+  const meta = fieldMeta(field)
+    + `<span class="pos">${escape(field.table)} <i>›</i> ${escape(field.row)} <i>›</i> ${escape(field.column)}</span>`;
+  const desc = declared.description ? `<div class="desc">${escape(declared.description)}</div>` : '';
+  const info = `${desc}<div class="meta">${meta}</div>`;
+  const problems = field.problems.map(renderProblem).join('');
+  const name = `<span class="label"><span class="n">${escape(field.label)}</span></span>`;
+  const lab = (text, control) => `<label><span class="lbl">${text}</span>${control}</label>`;
+  let body;
+  switch (TABLE_STYLE) {
+    case 'A':
+      body = `${idx}<div class="about">${name}${info}</div>
+        <div class="ctl">${c.value}${c.times}${c.path}${c.unit}${c.result}</div>${problems}`;
+      break;
+    case 'B':
+      body = `${idx}<div class="main"><div class="top">${name}<span class="fill"></span>
+        ${lab('value', c.value)}${c.times}${lab('path', c.path)}${lab('unit', c.unit)}</div>
+        ${c.result}<div class="info">${info}</div>${problems}</div>`;
+      break;
+    case 'C':
+      body = `${idx}${name}${c.value}${c.times}${c.path}${c.unit}
+        <button class="more" type="button" data-more aria-expanded="false" title="description">i</button>
+        <div class="detail" hidden>${info}</div>${c.result}${problems}`;
+      break;
+    case 'D':
+      body = `${idx}<div class="main"><div class="line1">${name}
+        <div class="ctl">${c.value}${c.times}${c.path}${c.unit}</div></div>${c.result}
+        <div class="line2">${info}</div>${problems}</div>`;
+      break;
+    default:
+      body = `<div class="hd">${idx}${name}</div>${info}
+        <div class="bar">${lab('value', c.value)}${c.times}${lab('path', c.path)}${lab('unit', c.unit)}</div>${c.result}${problems}`;
+  }
+  return `<div class="field tv tv-${TABLE_STYLE} ${waiting ? 'waiting' : ''} ${bad ? 'bad' : ''}
+      ${field.state === 'missing' ? 'absent' : ''}"
+      data-table="${escape(field.table)}" data-row="${escape(field.row)}"
+      data-col="${escape(field.column)}">${body}</div>`;
+}
+
 function renderPlain(field, computed, waiting) {
   if (computed) {
     // A step that never ran has no value to show and no business offering an input
@@ -730,13 +839,7 @@ function renderPlain(field, computed, waiting) {
       ? '<span class="value-cell pending">not computed — the run stopped earlier</span>'
       : `<span class="value-cell">${value(field.live)}</span>`;
   }
-  const numeric = (field.declared.types || []).every((entry) =>
-    entry === 'int' || entry === 'float') && !field.is_reference;
-  return `<input class="cell ${field.is_reference ? 'ref' : ''}" data-cell
-      aria-label="${escape(`${field.table} ${field.label} value`)}"
-      ${numeric ? 'inputmode="decimal"' : ''}
-      value="${escape(field.text ?? '')}"
-      placeholder="${waiting ? 'required' : ''}">
+  return `${valueInput(field, waiting)}
     ${field.unit.column
       ? `<input class="unit" data-unit aria-label="${escape(`${field.label} unit`)}"
            placeholder="-" title="${escape(field.unit.text ?? '')}"
@@ -1094,6 +1197,7 @@ function wireNeeds() {
   host.querySelectorAll('[data-cell], [data-unit], [data-path]').forEach((input) => {
     const field = input.closest('.field');
     const { table, row, col: column } = field.dataset;
+    const initial = input.value;
     const target = input.dataset.unit !== undefined ? unitColumnOf(table, row, column)
       : input.dataset.path !== undefined ? pathColumnOf(table, row, column)
       : column;
@@ -1106,18 +1210,26 @@ function wireNeeds() {
     }
     input.onkeydown = (event) => {
       if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
-      if (event.key === 'Escape') { input.value = input.defaultValue; input.blur(); }
+      if (event.key === 'Escape') { input.value = initial; input.blur(); }
     };
     // `change`, not `blur`. It is the event that means "the user finished editing",
     // fires once whether they pressed Enter or clicked away, and does not fire when
     // they tab through a field without touching it.
     input.onchange = () => {
-      if (input.value === input.defaultValue) return;
+      if (input.value === initial) return;
       // A plugin declares this input, the frame emits a field for it, and the file has
       // no such row — the alternative-input pairs on step 300 are exactly this. Without
       // `create` the box renders, accepts a keystroke, and throws it away with a message
       // naming no way to proceed.
       commit(table, row, target, input.value, field.classList.contains('absent'));
+    };
+  });
+
+  host.querySelectorAll('[data-more]').forEach((button) => {
+    button.onclick = () => {
+      const detail = button.parentElement.querySelector('.detail');
+      detail.hidden = !detail.hidden;
+      button.setAttribute('aria-expanded', String(!detail.hidden));
     };
   });
 
