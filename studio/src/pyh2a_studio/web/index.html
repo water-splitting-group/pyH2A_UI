@@ -68,6 +68,9 @@
 <main id="sheet">
   <nav id="rail" aria-label="workflow">
     <div class="rail-head">
+      <!-- Collapses the workflow to a strip on a wide screen; the strip opens it again. -->
+      <button class="fold" id="fold-rail" type="button" aria-controls="rail" aria-expanded="true"
+              title="collapse the workflow"><span class="arrow" aria-hidden="true">‹</span><span class="fold-label">workflow</span></button>
       <span class="kicker">workflow</span>
       <span class="rail-sub" id="rail-sub">execution order</span>
     </div>
@@ -85,6 +88,8 @@
 
   <aside id="scope" aria-label="what is available here">
     <div class="scope-head">
+      <button class="fold" id="fold-scope" type="button" aria-controls="scope" aria-expanded="true"
+              title="collapse what is available here"><span class="arrow" aria-hidden="true">›</span><span class="fold-label">available here</span></button>
       <h2>What is available here</h2>
       <p class="scope-sub" id="scope-sub"></p>
       <div class="find">

@@ -1672,21 +1672,46 @@ input.cell.ref { text-align: left; font-size: 11px; color: var(--prussian); }
 input[type="checkbox"] { accent-color: var(--ink); }
 
 /* ============================================================ input rows
-   One line per editable row: number, parameter, value, × path, unit, and an i button that
-   opens the description, meta line and input-file position under it. */
+   One line per editable row: number, parameter, value, × path, unit, dimension, range,
+   and an i button that opens the description under it. The rows have fixed column widths
+   and sit in a box that scrolls sideways, with the number and parameter held in place;
+   a table with several value columns (Usage, Cost, …) puts them side by side. */
 .tbl-head .tog {
   font-family: var(--mono); font-size: 10px; color: var(--prussian);
   border: 1px solid var(--rule-firm); border-radius: 9px; padding: 0 8px; background: var(--bench);
 }
 .tbl-head:hover { background: var(--paper-2); }
+
+.tv-scroll { overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--ash-line) var(--paper-2); }
+.tv-scroll::-webkit-scrollbar { height: 10px; }
+.tv-scroll::-webkit-scrollbar-track { background: var(--paper-2); }
+.tv-scroll::-webkit-scrollbar-thumb { background: var(--ash-line); border-radius: 5px; }
+/* `width: max-content` lets a row be as wide as its cells; the minimum keeps a row that
+   fits from stopping short of the table's right edge. */
 .tv-head, .field.tv {
-  display: grid; grid-template-columns: 22px minmax(0, 1fr) 70px 12px 120px 78px 22px;
-  column-gap: 5px; align-items: center;
+  display: grid; grid-template-columns: 22px minmax(190px, 1fr) 76px 12px 120px 84px 100px 90px;
+  column-gap: 5px; align-items: center; width: max-content; min-width: 100%;
 }
 .tv-head { padding: 5px 0 4px; background: var(--paper-2); border-bottom: 1px solid var(--rule-firm); }
-.field.tv { padding: 5px 0; }
 .tv-head .lbl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--ash); }
+.tv-head.grouped { row-gap: 3px; }
+.tv-head .grp { grid-column: span 6; font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink);
+  border-bottom: 1.5px solid var(--ink); padding-bottom: 2px; }
+.field.tv { padding: 5px 0; background: var(--paper); }
+
+/* number and parameter stay in view while the row scrolls */
+.tv-head > :nth-child(1), .tv-head > :nth-child(2), .tv-head.grouped > .i, .tv-head.grouped > .p,
+.field.tv > .idx, .field.tv > .label { position: sticky; z-index: 1; background: inherit; }
+.tv-head > :nth-child(1), .tv-head.grouped > .i, .field.tv > .idx { left: 0; }
+.tv-head > :nth-child(2), .tv-head.grouped > .p, .field.tv > .label { left: 27px; padding-right: 6px; }
+.field.tv > .label { align-self: stretch; display: flex; align-items: center; gap: 6px; }
+.field.tv > .label .n { flex: 1; min-width: 0; }
+
+/* a group's cells belong to their own .field, but lay out in the row's grid */
+.field.tv-cell { display: contents; }
+
 .tv input.cell, .tv input.path, .tv select.unit, .tv .unit.fixed, .tv .dash { height: 29px; min-width: 0; }
 .tv input.path { font-size: 11px; color: var(--prussian); }
 .tv input.path::placeholder { color: var(--ash); font-style: italic; }
@@ -1698,22 +1723,77 @@ input[type="checkbox"] { accent-color: var(--ink); }
   border: 1px dashed var(--rule-firm); border-radius: 2px; background: var(--paper-2);
   font-family: var(--mono); font-size: 14px; color: var(--ash); cursor: default; }
 .tv .times { font-family: var(--mono); color: var(--graphite); text-align: center; }
-.tv .more { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--rule-firm);
+.tv .dim, .tv .rng { font-family: var(--mono); font-size: 10.5px; color: var(--graphite);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv .more { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--rule-firm);
   background: var(--bench); color: var(--prussian); font-family: var(--serif); font-style: italic;
   font-size: 11px; line-height: 1; cursor: pointer; padding: 0; }
 .tv .more[aria-expanded="true"] { background: var(--prussian); color: var(--paper); }
-.tv .detail, .tv .problem, .tv .tv-result { grid-column: 2 / -1; }
-.tv .detail { background: #F7F5EF; margin-top: 6px; padding: 6px 8px; border-radius: 2px; }
+
+/* what goes under the line: description, result, problems. `order` keeps a group's own
+   result and problems from breaking into the middle of the row. */
+.tv .detail, .tv .problem, .tv .tv-result { grid-column: 2 / -1; order: 1; }
+.tv .detail { background: #F7F5EF; margin-top: 6px; padding: 6px 8px; border-radius: 2px; max-width: 640px; }
 .tv .detail[hidden] { display: none; }
-.tv .meta .pos { color: var(--prussian); }
-.tv .meta .pos i { font-style: normal; color: var(--ash); }
-.tv .tv-result { justify-self: end; margin-top: 5px; font-family: var(--mono); font-size: 12px;
+.tv .detail .desc + .desc { margin-top: 3px; }
+.tv .tv-result { justify-self: start; margin-top: 5px; font-family: var(--mono); font-size: 12px;
   background: var(--dark-2); color: var(--dark-ink); border-radius: 2px; padding: 2px 8px; }
 .tv .problem { margin-top: 6px; }
 
-/* On a phone the parameter name takes its own line and the controls sit under it. */
+/* optional: a shaded row, and a tag of its own at the head of the description */
+.field.tv.optional { background: var(--paper-2); }
+.field.tv.optional .n { color: var(--graphite); }
+.field.tv.optional input.cell { border-style: dashed; }
+.opt-tag { display: inline-block; margin-bottom: 4px; font-family: var(--mono); font-size: 9px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--graphite);
+  border: 1px solid var(--rule-firm); border-radius: 9px; padding: 0 7px; background: var(--bench); }
+
+/* On a phone the old row layout's placement rules must not reach these rows. */
 @media (max-width: 900px) {
-  .tv-head { display: none; }
-  .field.tv { grid-template-columns: 22px minmax(0, 1fr) 12px minmax(0, 1.4fr) minmax(70px, auto) 22px; row-gap: 5px; }
-  .field.tv > .label { grid-column: 2 / -1; }
+  .field.tv > :not(.detail):not(.problem):not(.tv-result),
+  .field.tv-cell > :not(.problem):not(.tv-result) { grid-column: auto; }
+  .field.tv > .detail, .field.tv > .problem, .field.tv > .tv-result,
+  .field.tv-cell > .problem, .field.tv-cell > .tv-result { grid-column: 2 / -1; }
+  .tv .detail { max-width: 300px; }
+}
+
+/* ============================================================ folding the side panels
+   On a wide screen each side panel can fold to a strip with its name on it; the strip
+   opens it again. At drawer widths the panels are drawers, so none of this applies. */
+.fold { display: none; }
+@media (min-width: 901px) {
+  .fold {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    width: 22px; height: 22px; padding: 0; float: right;
+    font-family: var(--mono); font-size: 14px; line-height: 1; color: var(--graphite);
+    background: var(--bench); border: 1px solid var(--rule-firm); border-radius: 2px; cursor: pointer;
+  }
+  .fold:hover { color: var(--prussian); border-color: var(--prussian); }
+  .fold .fold-label { display: none; }
+
+  body.rail-folded #rail .rail-head > :not(.fold), body.rail-folded #rail > :not(.rail-head),
+  body.rail-folded #rail-card { display: none !important; }
+  body.rail-folded .rail-head { padding: var(--sp-3) 6px; }
+  body.rail-folded #rail .fold {
+    float: none; width: 26px; height: auto; padding: 8px 0; flex-direction: column; }
+  body.rail-folded #rail .fold .fold-label {
+    display: block; writing-mode: vertical-rl; font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; }
+  body.rail-folded #rail .arrow { transform: scaleX(-1); }
+}
+@media (min-width: 1401px) {
+  body.scope-folded #scope .scope-head > :not(.fold), body.scope-folded #scope > :not(.scope-head) {
+    display: none !important; }
+  body.scope-folded .scope-head { padding: var(--sp-3) 6px; border-bottom: 0; }
+  body.scope-folded #scope .fold { float: none; width: 26px; height: auto; padding: 8px 0; flex-direction: column; }
+  body.scope-folded #scope .fold .fold-label { display: block; writing-mode: vertical-rl; font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase; }
+  body.scope-folded #scope .arrow { transform: scaleX(-1); }
+  body.rail-folded #sheet { grid-template-columns: 40px minmax(560px, 1fr) minmax(380px, 34%); }
+  body.scope-folded #sheet { grid-template-columns: 312px minmax(560px, 1fr) 40px; }
+  body.rail-folded.scope-folded #sheet { grid-template-columns: 40px minmax(560px, 1fr) 40px; }
+}
+@media (min-width: 901px) and (max-width: 1400px) {
+  body.rail-folded #sheet { grid-template-columns: 40px minmax(0, 1fr); }
+  #fold-scope { display: none; }
 }

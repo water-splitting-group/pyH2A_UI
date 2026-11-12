@@ -650,9 +650,27 @@ function renderTable(table) {
       <span class="note">${sectionCount(table)}</span>
       <span class="tog">${open ? 'collapse' : 'expand'}</span>
     </div>
-    ${open && (table.to_enter || table.problems) ? columnHead() : ''}
-    ${open ? table.fields.map((field, index) => renderField(field, index)).join('') : ''}
+    ${open ? tableBody(table) : ''}
   </div>`;
+}
+
+/*
+ * A table's rows. Input rows sit in a box that scrolls sideways, under their column
+ * labels; computed rows keep their own layout. A table whose rows carry several value
+ * columns (`Usage_Value | Usage_Path | Usage_Unit | Cost_Value | …`) is drawn as one
+ * line per row with those column groups side by side.
+ */
+function tableBody(table) {
+  const editable = table.fields.filter((field) => !isComputed(field));
+  if (!editable.length) return table.fields.map((field, index) => renderField(field, index)).join('');
+  const groups = [...new Set(editable.map(groupOf))];
+  const computed = table.fields.filter(isComputed);
+  const rows = groups.length > 1
+    ? groupedRows(table, editable, groups)
+    : table.fields.map((field, index) => renderField(field, index)).join('');
+  return `<div class="tv-scroll">
+    ${groups.length > 1 ? groupedHead(groups) : columnHead()}${rows}
+  </div>${groups.length > 1 ? computed.map((field, index) => renderField(field, index)).join('') : ''}`;
 }
 
 /*
@@ -676,24 +694,41 @@ function plural(count, word) {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
+/*
+ * A step that never ran still has its authored fields, and one of them is usually the
+ * value that stopped the run. Rendering the whole step read-only left no way to fix the
+ * field you had just broken: the only escape was to open another step, or reload. A
+ * value the *user* wrote stays editable whatever happened downstream; only a value an
+ * earlier step was supposed to compute becomes evidence.
+ */
+function isComputed(field) {
+  const authored = field.text !== null && field.text !== undefined && field.text !== '';
+  return field.state === 'computed' || (field.state === 'unevaluated' && !authored);
+}
+
+/*
+ * `missing` covers two different situations and only one is a problem: a required field
+ * nobody supplied, and an optional one nobody needed to. Painting both sodium and
+ * captioning both "required" contradicted the field's own meta line.
+ */
+function isWaiting(field) {
+  return field.state === 'missing' && !field.declared.optional;
+}
+
+function isEquation(field) {
+  return Boolean(field.path.text && field.path.text !== 'None');
+}
+
+/* The column group a field belongs to: `Usage` for `Usage_Value`, '' for a bare `Value`. */
+function groupOf(field) {
+  return field.column.replace(/_?Value$/, '');
+}
+
 function renderField(field, index) {
   const declared = field.declared;
-  // `missing` covers two different situations and only one is a problem: a required
-  // field nobody supplied, and an optional one nobody needed to. Painting both sodium
-  // and captioning both "required" contradicted the field's own meta line, which said
-  // `optional` two rows below.
-  const waiting = field.state === 'missing' && !field.declared.optional;
+  const waiting = isWaiting(field);
   const bad = field.problems.length > 0;
-  // A step that never ran still has its authored fields, and one of them is usually the
-  // value that stopped the run. Rendering the whole step read-only left no way to fix
-  // the field you had just broken: the only escape was to open another step, or reload.
-  // A value the *user* wrote stays editable whatever happened downstream; only a value
-  // an earlier step was supposed to compute becomes evidence.
-  const authored = field.text !== null && field.text !== undefined && field.text !== '';
-  const computed = field.state === 'computed'
-    || (field.state === 'unevaluated' && !authored);
-  const equation = Boolean(field.path.text && field.path.text !== 'None');
-  if (!computed) return renderInputRow(field, index, equation, waiting, bad);
+  if (!isComputed(field)) return renderInputRow(field, index, waiting, bad);
 
   const meta = fieldMeta(field);
 
@@ -713,16 +748,20 @@ function renderField(field, index) {
   </div>`;
 }
 
-/* The meta line under a field: dimension, range, optional, source file, column. */
-function fieldMeta(field) {
+/*
+ * The meta line under a field: dimension, range, optional, source file, column. An input
+ * row shows dimension and range in their own columns and `optional` as a tag, so it asks
+ * for the rest only.
+ */
+function fieldMeta(field, { dimension = true, range = true, optional = true, column = true } = {}) {
   const declared = field.declared;
   return [
-    declared.dimension ? `<span><b>${escape(declared.dimension)}</b></span>` : '',
-    bounds(field.bounds_shown) ? `<span>range <b>${bounds(field.bounds_shown)}</b></span>` : '',
-    declared.optional ? '<span>optional</span>' : '',
+    dimension && declared.dimension ? `<span><b>${escape(declared.dimension)}</b></span>` : '',
+    range && bounds(field.bounds_shown) ? `<span>range <b>${bounds(field.bounds_shown)}</b></span>` : '',
+    optional && declared.optional ? '<span>optional</span>' : '',
     field.origin && field.origin.includes('~')
       ? `<span>from <b>${escape(field.origin.split('~').pop())}</b></span>` : '',
-    field.column !== 'Value' ? `<span>column <b>${escape(field.column)}</b></span>` : '',
+    column && field.column !== 'Value' ? `<span>column <b>${escape(field.column)}</b></span>` : '',
   ].filter(Boolean).join('');
 }
 
@@ -737,67 +776,135 @@ function valueInput(field, waiting) {
       placeholder="${waiting ? 'required' : ''}">`;
 }
 
-/* The column labels over a table's input rows: parameter, value, × path, unit. */
+/*
+ * The column labels over a table's input rows. Every cell has a fixed width so the box
+ * scrolls sideways instead of squeezing; the parameter column stays put while it does.
+ */
+const SUB_COLUMNS = ['76px', '12px', '120px', '84px', '100px', '90px'];
+const SUB_LABELS = '<span class="lbl">value</span><span></span><span class="lbl">path (multiplier)</span>'
+  + '<span class="lbl">unit</span><span class="lbl">dimension</span><span class="lbl">range</span>';
+
 function columnHead() {
-  return `<div class="tv-head"><span></span><span class="lbl">parameter</span>
-    <span class="lbl">value</span><span></span><span class="lbl">path (multiplier)</span>
-    <span class="lbl">unit</span><span></span></div>`;
+  return `<div class="tv-head"><span></span><span class="lbl p">parameter</span>${SUB_LABELS}</div>`;
+}
+
+function groupedColumns(groups) {
+  return `22px minmax(190px, 1fr) ${groups.map(() => SUB_COLUMNS.join(' ')).join(' ')}`;
+}
+
+function groupedHead(groups) {
+  const style = `style="grid-template-columns: ${groupedColumns(groups)}"`;
+  return `<div class="tv-head grouped" ${style}>
+    <span></span><span class="lbl p">parameter</span>
+    ${groups.map((group) => `<span class="grp">${escape(group.replace(/_/g, ' '))}</span>`).join('')}
+    <span class="i"></span><span class="p"></span>${groups.map(() => SUB_LABELS).join('')}
+  </div>`;
 }
 
 /*
- * The controls of one input row. The unit is a drop-down of the units pyH2A knows for
- * the declared dimension (`unit.choices`); a dimensionless row shows a fixed dash. A row
- * with a path shows the product it produces.
+ * The cells of one value column: value, × path, unit, dimension and range. The unit is a
+ * drop-down of the units pyH2A knows for the declared dimension (`unit.choices`); a
+ * dimensionless value shows a fixed dash. A table without a Path column shows an empty
+ * "× 1" box.
  */
-function rowControls(field, equation, waiting) {
+function valueCells(field, waiting) {
   const name = escape(field.label);
-  const pathText = equation ? field.path.text : '';
   const path = field.path.column
     ? `<input class="path" data-path spellcheck="false" aria-label="${name} path"
-        placeholder="no path (× 1)" value="${escape(pathText)}">`
+        placeholder="no path (× 1)" value="${escape(isEquation(field) ? field.path.text : '')}">`
     : `<input class="path" disabled aria-label="${name} path"
         placeholder="× 1" title="this table has no Path column">`;
   const unitText = field.unit.text ?? '';
   const choices = field.unit.choices || [];
-  const dimensionless = field.declared.dimension === 'dimensionless'
-    || (!choices.length && (unitText === '' || unitText === '-'));
+  const dimension = field.declared.dimension;
   let unit;
-  if (dimensionless) {
+  if (dimension === 'dimensionless' || (!choices.length && (unitText === '' || unitText === '-'))) {
     unit = `<span class="dash" title="dimensionless — no unit" aria-label="${name} unit: dimensionless">–</span>`;
   } else if (field.unit.column) {
     unit = `<select class="unit" data-unit aria-label="${name} unit"
-        title="${escape(field.declared.dimension ? `units of ${field.declared.dimension}` : '')}">
+        title="${escape(dimension ? `units of ${dimension}` : '')}">
       ${choices.map((choice) => `<option ${choice === unitText ? 'selected' : ''}>${escape(choice)}</option>`).join('')}
     </select>`;
   } else {
     unit = `<span class="unit fixed">${escape(unitText)}</span>`;
   }
-  const result = equation && field.after
-    ? `<span class="tv-result">= ${value(field.after)}</span>` : '';
-  return { value: valueInput(field, waiting), path, unit, result, times: '<span class="times">×</span>' };
+  const range = bounds(field.bounds_shown);
+  return `${valueInput(field, waiting)}<span class="times">×</span>${path}${unit}
+    <span class="dim" title="${escape(dimension || '')}">${escape(dimension || '—')}</span>
+    <span class="rng">${range || '—'}</span>`;
 }
 
+function resultChip(field) {
+  return isEquation(field) && field.after ? `<span class="tv-result">= ${value(field.after)}</span>` : '';
+}
+
+const OPTIONAL_TAG = '<span class="opt-tag">optional</span>';
+const MORE_BUTTON = '<button class="more" type="button" data-more aria-expanded="false" title="description">i</button>';
+
 /*
- * One editable row: number, parameter, value, × path, unit and an i button on one line.
- * The description, meta line and input-file position open under it from the i button.
+ * One editable row: number, parameter, the value cells and an i button on one line. The
+ * description and the rest of the meta line open under it from the i button. An optional
+ * input is shaded, and says so with a tag at the head of its description.
  */
-function renderInputRow(field, index, equation, waiting, bad) {
+function renderInputRow(field, index, waiting, bad) {
   const declared = field.declared;
-  const c = rowControls(field, equation, waiting);
-  const meta = fieldMeta(field)
-    + `<span class="pos">${escape(field.table)} <i>›</i> ${escape(field.row)} <i>›</i> ${escape(field.column)}</span>`;
-  const desc = declared.description ? `<div class="desc">${escape(declared.description)}</div>` : '';
-  return `<div class="field tv ${waiting ? 'waiting' : ''} ${bad ? 'bad' : ''}
-      ${field.state === 'missing' ? 'absent' : ''}"
+  const meta = fieldMeta(field, { dimension: false, range: false, optional: false });
+  return `<div class="field tv ${declared.optional ? 'optional' : ''} ${waiting ? 'waiting' : ''}
+      ${bad ? 'bad' : ''} ${field.state === 'missing' ? 'absent' : ''}"
       data-table="${escape(field.table)}" data-row="${escape(field.row)}"
       data-col="${escape(field.column)}">
     <span class="idx">${String(index + 1).padStart(2, '0')}</span>
-    <span class="label"><span class="n">${escape(field.label)}</span></span>
-    ${c.value}${c.times}${c.path}${c.unit}
-    <button class="more" type="button" data-more aria-expanded="false" title="description">i</button>
-    <div class="detail" hidden>${desc}<div class="meta">${meta}</div></div>
-    ${c.result}${field.problems.map(renderProblem).join('')}
+    <span class="label"><span class="n">${escape(field.label)}</span>${MORE_BUTTON}</span>
+    ${valueCells(field, waiting)}
+    <div class="detail" hidden>${declared.optional ? OPTIONAL_TAG : ''}
+      ${declared.description ? `<div class="desc">${escape(declared.description)}</div>` : ''}
+      ${meta ? `<div class="meta">${meta}</div>` : ''}</div>
+    ${resultChip(field)}${field.problems.map(renderProblem).join('')}
   </div>`;
+}
+
+/*
+ * The rows of a table with several value columns: one line per row, its column groups
+ * side by side. Each group's cells sit in their own `.field` (laid out with
+ * `display: contents`), so an edit, a fix or a problem still names the column it
+ * belongs to.
+ */
+function groupedRows(table, editable, groups) {
+  const rows = new Map();
+  for (const field of editable) {
+    if (!rows.has(field.row)) rows.set(field.row, new Map());
+    rows.get(field.row).set(groupOf(field), field);
+  }
+  return [...rows.entries()].map(([row, byGroup], index) => {
+    const fields = [...byGroup.values()];
+    const optional = fields.every((field) => field.declared.optional);
+    const cells = groups.map((group) => {
+      const field = byGroup.get(group);
+      if (!field) return SUB_COLUMNS.map(() => '<span></span>').join('');
+      const waiting = isWaiting(field);
+      return `<div class="field tv-cell ${waiting ? 'waiting' : ''} ${field.problems.length ? 'bad' : ''}
+          ${field.state === 'missing' ? 'absent' : ''}"
+          data-table="${escape(field.table)}" data-row="${escape(field.row)}"
+          data-col="${escape(field.column)}">${valueCells(field, waiting)}
+        ${resultChip(field)}${field.problems.map(renderProblem).join('')}</div>`;
+    }).join('');
+    const described = fields.filter((field) => field.declared.description);
+    const shared = new Set(described.map((field) => field.declared.description)).size === 1;
+    const notes = shared
+      ? `<div class="desc">${escape(described[0].declared.description)}</div>`
+      : described.map((field) => `<div class="desc"><b>${escape(groupOf(field).replace(/_/g, ' '))}</b> — `
+        + `${escape(field.declared.description)}</div>`).join('');
+    const meta = fieldMeta(fields[0], { dimension: false, range: false, optional: false, column: false });
+    return `<div class="field tv grouped ${optional ? 'optional' : ''}"
+        style="grid-template-columns: ${groupedColumns(groups)}"
+        data-table="${escape(table.table)}" data-row="${escape(row)}" data-col="${escape(fields[0].column)}">
+      <span class="idx">${String(index + 1).padStart(2, '0')}</span>
+      <span class="label"><span class="n">${escape(row)}</span>${MORE_BUTTON}</span>
+      ${cells}
+      <div class="detail" hidden>${optional ? OPTIONAL_TAG : ''}${notes}
+        ${meta ? `<div class="meta">${meta}</div>` : ''}</div>
+    </div>`;
+  }).join('');
 }
 
 /*
@@ -1146,7 +1253,7 @@ function wireNeeds() {
 
   host.querySelectorAll('[data-more]').forEach((button) => {
     button.onclick = () => {
-      const detail = button.parentElement.querySelector('.detail');
+      const detail = button.closest('.field.tv').querySelector('.detail');
       detail.hidden = !detail.hidden;
       button.setAttribute('aria-expanded', String(!detail.hidden));
     };
@@ -1868,6 +1975,38 @@ const FIND_SHORT = 'find a value…';
 function renderFindHint() {
   el('find').placeholder = narrow() ? FIND_SHORT : FIND_LONG;
 }
+
+/*
+ * Folding a side panel on a wide screen. The column shrinks to a strip carrying the
+ * panel's name, and the strip opens it again. Below the drawer widths the panels are
+ * drawers already, so the CSS ignores the fold there. Remembered per browser.
+ */
+const FOLD_KEY = 'pyh2a-studio.folded';
+const FOLD_TITLES = {
+  rail: ['collapse the workflow', 'show the workflow'],
+  scope: ['collapse what is available here', 'show what is available here'],
+};
+
+function setFolded(panel, folded) {
+  document.body.classList.toggle(`${panel}-folded`, folded);
+  const button = el(`fold-${panel}`);
+  button.setAttribute('aria-expanded', String(!folded));
+  button.title = FOLD_TITLES[panel][folded ? 1 : 0];
+  try {
+    const saved = ['rail', 'scope'].filter((name) => document.body.classList.contains(`${name}-folded`));
+    localStorage.setItem(FOLD_KEY, JSON.stringify(saved));
+  } catch { /* storage can be off; the fold still works for this visit */ }
+}
+
+['rail', 'scope'].forEach((panel) => {
+  el(`fold-${panel}`).onclick = () =>
+    setFolded(panel, !document.body.classList.contains(`${panel}-folded`));
+});
+try {
+  (JSON.parse(localStorage.getItem(FOLD_KEY) || '[]') || []).forEach((panel) => {
+    if (FOLD_TITLES[panel]) setFolded(panel, true);
+  });
+} catch { /* nothing remembered */ }
 
 el('show-rail').onclick = () =>
   showPanel(document.body.classList.contains('rail-open') ? null : 'rail');
